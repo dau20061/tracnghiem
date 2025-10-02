@@ -5,6 +5,9 @@ import cors from "cors";
 
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
+import quizzesRoutes from "./routes/quizzes.js";
+
+
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -16,6 +19,9 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/quizzes", quizzesRoutes);
+
 
 // Start
 const PORT = process.env.PORT || 4000;
