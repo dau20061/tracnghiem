@@ -31,42 +31,52 @@ export default function IC3Dashboard() {
     <div className="page">
       {/* Header + Nav */}
       <header className="site-header" data-testid="header">
-        <div className="header-inner container">
-          <div
-            className="brand-logo"
-            aria-label="IC3 Logo"
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate("/")}
-          >
-            <span>IC3</span>
-          </div>
-          <nav className="main-nav">
-            <button className="nav-btn" onClick={() => navigate("/")} data-testid="nav-home">
-              Trang chủ
-            </button>
-            <button className="nav-btn" onClick={() => navigate("/courses")} data-testid="nav-courses">
-              Khóa học
-            </button>
+  <div className="header-inner container">
+    <div
+      className="brand-logo"
+      aria-label="IC3 Logo"
+      style={{ cursor: "pointer" }}
+      onClick={() => navigate("/")}
+    >
+      <span>IC3</span>
+    </div>
 
-            <div
-              className="nav-dropdown"
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}
-            >
-              <button className="nav-btn" type="button" data-testid="nav-practice">
-                Luyện tập <span className="nav-caret">▾</span>
-              </button>
-              {open && (
-                <div className="dropdown-panel" data-testid="dropdown">
-                  <button className="dropdown-item" onClick={() => setTab("lv1")}>IC3 Spark GS6 Level 1</button>
-                  <button className="dropdown-item" onClick={() => setTab("lv2")}>IC3 Spark GS6 Level 2</button>
-                  <button className="dropdown-item" onClick={() => setTab("lv3")}>IC3 Spark GS6 Level 3</button>
-                </div>
-              )}
-            </div>
-          </nav>
-        </div>
-      </header>
+    <nav className="main-nav">
+      <button className="nav-btn" onClick={() => navigate("/")} data-testid="nav-home">
+        Trang chủ
+      </button>
+      <button className="nav-btn" onClick={() => navigate("/courses")} data-testid="nav-courses">
+        Khóa học
+      </button>
+
+      <div className="nav-dropdown">
+        <button
+          className="nav-btn"
+          type="button"
+          data-testid="nav-practice"
+          onClick={() => setOpen(!open)}
+        >
+          Luyện tập <span className="nav-caret">▾</span>
+        </button>
+
+        {open && (
+          <div className="dropdown-panel" data-testid="dropdown">
+            <button className="dropdown-item" onClick={() => setTab("lv1")}>
+              IC3 Spark GS6 Level 1
+            </button>
+            <button className="dropdown-item" onClick={() => setTab("lv2")}>
+              IC3 Spark GS6 Level 2
+            </button>
+            <button className="dropdown-item" onClick={() => setTab("lv3")}>
+              IC3 Spark GS6 Level 3
+            </button>
+          </div>
+        )}
+      </div>
+    </nav>
+  </div>
+</header>
+
 
       {/* Main */}
       <main className="main">
@@ -103,8 +113,12 @@ export default function IC3Dashboard() {
                       <p className="card-text">{item.description}</p>
                       <div className="card-actions">
                         <span className="card-meta">~15 câu hỏi</span>
-                        <button className="btn-primary">Vào bài</button>
-                      </div>
+                        <button
+                        className="btn-primary"
+                        onClick={() => navigate(`/login?quiz=${item.id}`)}   // ← truyền quizId
+                        >
+                        Vào bài
+                        </button>                         </div>
                     </div>
                   </article>
                 ))}
@@ -140,8 +154,13 @@ export default function IC3Dashboard() {
                       <p className="card-text">Bài luyện tập nâng cao – thời lượng ~15 phút</p>
                       <div className="card-actions">
                         <span className="card-meta">~15 câu hỏi</span>
-                        <button className="btn-primary">Vào bài</button>
-                      </div>
+                        <button
+                        className="btn-primary"
+                        onClick={() => navigate(`/login?quiz=${item.id}`)}   // ← truyền quizId
+                        >
+                        Vào bài
+                        </button>                     
+                     </div>
                     </div>
                   </article>
                 ))}
@@ -177,8 +196,12 @@ export default function IC3Dashboard() {
                       <p className="card-text">Bài kiểm tra tổng hợp – thời lượng ~15 phút</p>
                       <div className="card-actions">
                         <span className="card-meta">~15 câu hỏi</span>
-                        <button className="btn-primary">Vào bài</button>
-                      </div>
+                        <button
+                        className="btn-primary"
+                        onClick={() => navigate(`/login?quiz=${item.id}`)}   // ← truyền quizId
+                        >
+                        Vào bài
+                        </button>                         </div>
                     </div>
                   </article>
                 ))}
