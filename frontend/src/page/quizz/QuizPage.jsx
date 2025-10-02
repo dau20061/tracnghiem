@@ -1,9 +1,10 @@
-// src/page/quiz/QuizPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./quiz.css";
 
 const cx = (...a) => a.filter(Boolean).join(" ");
+
+const TEST_DURATION = 3 * 60; // 3 phút
 
 export default function QuizPage() {
   const { quizId } = useParams();
@@ -12,13 +13,21 @@ export default function QuizPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [idx, setIdx] = useState(0); // câu hiện tại
-  const [answers, setAnswers] = useState({}); // { [qId]: { answered: true, correct?: boolean, meta?: any } }
+
+  const [mode, setMode] = useState("training"); // 'training' | 'testing'
+  const [idx, setIdx] = useState(0);            // câu hiện tại
+  const [answers, setAnswers] = useState({});   // { [qId]: { answered: true, ... } }
+
+  // timer cho chế độ testing
+  const [timeLeft, setTimeLeft] = useState(null); // giây còn lại
+  const timerRef = useRef(null);
+  const completedRef = useRef(false); // tránh gọi complete() nhiều lần
 
   // helper: đánh dấu đã trả lời
   const markAnswered = (qid, info = {}) =>
     setAnswers((prev) => ({ ...prev, [qid]: { ...(prev[qid] || {}), ...info, answered: true } }));
 
+  // tải đề
   useEffect(() => {
     const run = async () => {
       setLoading(true); setErr("");
@@ -27,8 +36,11 @@ export default function QuizPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || "Không tải được đề");
         setData(json);
+        // reset trạng thái mỗi khi đổi quiz
         setIdx(0);
         setAnswers({});
+        // đặt thời gian ban đầu theo mode
+        setTimeLeft(mode === "testing" ? TEST_DURATION : null);
       } catch (e) {
         setErr(e.message);
       } finally {
@@ -36,8 +48,41 @@ export default function QuizPage() {
       }
     };
     run();
+
+    // cleanup khi unmount
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
+  // khi đổi mode: reset tiến trình & đồng hồ cho đơn giản/dễ dùng
+  useEffect(() => {
+    if (!data) return;
+    setIdx(0);
+    setAnswers({});
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeLeft(mode === "testing" ? TEST_DURATION : null);
+    completedRef.current = false;
+  }, [mode, data]);
+
+  // đồng hồ đếm ngược cho testing
+  useEffect(() => {
+    if (mode !== "testing" || timeLeft == null) return;
+    if (timeLeft <= 0) {
+      if (!completedRef.current) {
+        completedRef.current = true;
+        complete(true); // hết giờ
+      }
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => (t == null ? null : t - 1));
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [mode, timeLeft]);
+
+  // cuộn lên đầu khi đổi câu
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [idx, loading]);
@@ -48,23 +93,53 @@ export default function QuizPage() {
 
   const total = data.questions.length;
   const pct = Math.round(((idx + 1) / total) * 100);
-
   const prev = () => setIdx((i) => Math.max(0, i - 1));
   const next = () => setIdx((i) => Math.min(total - 1, i + 1));
-
   const doneCount = Object.values(answers).filter((x) => x?.answered).length;
 
-  const complete = () => {
-    const payload = { quizId, total, done: doneCount, ts: Date.now() };
+  function complete(autoByTime = false) {
+    // tắt timer
+    if (timerRef.current) clearInterval(timerRef.current);
+    // có thể tính điểm tại đây nếu cần (duyệt answers)
+    const payload = { quizId, total, done: doneCount, ts: Date.now(), mode, autoByTime };
     sessionStorage.setItem("quizResult", JSON.stringify(payload));
-    navigate(`/quiz/${quizId}/complete`, { state: { total, done: doneCount } });
+    navigate(`/quiz/${quizId}/complete`, { state: payload });
+  }
+
+  const formatTime = (s) => {
+    const m = Math.floor((s || 0) / 60);
+    const r = (s || 0) % 60;
+    return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
   };
+
+  const immediateFeedback = mode === "training" && !!data.settings?.immediateFeedback;
 
   return (
     <div className="quiz-wrap">
       <header className="quiz-head">
         <h1>{data.title}</h1>
-        <p>Demo 5 loại câu hỏi với phản hồi tức thì.</p>
+        <div className="mode-row">
+          <div className="mode-buttons">
+            <button
+              className={cx("btn", "btn-mode", mode === "training" && "active")}
+              onClick={() => setMode("training")}
+            >
+              Training
+            </button>
+            <button
+              className={cx("btn", "btn-mode", mode === "testing" && "active")}
+              onClick={() => setMode("testing")}
+            >
+              Testing (3 phút)
+            </button>
+          </div>
+
+          {mode === "testing" && (
+            <div className={cx("timer", timeLeft !== null && timeLeft <= 30 && "warn")}>
+              ⏱ {formatTime(timeLeft ?? 0)}
+            </div>
+          )}
+        </div>
 
         <div className="progress">
           <div className="progress-bar" style={{ width: `${pct}%` }} />
@@ -74,13 +149,14 @@ export default function QuizPage() {
         </div>
       </header>
 
+      {/* Chỉ hiển thị 1 câu/lần (giữ state để user quay lại không mất lựa chọn) */}
       <ol className="quiz-list">
         {data.questions.map((q, i) => (
           <li key={q.id} className={cx("quiz-item", i !== idx && "hidden-question")} aria-hidden={i !== idx}>
             <Question
               q={q}
               index={i + 1}
-              immediate={!!data.settings?.immediateFeedback}
+              immediate={immediateFeedback}
               onAnswered={(info) => markAnswered(q.id, info)}
             />
           </li>
@@ -93,12 +169,16 @@ export default function QuizPage() {
         {idx < total - 1 ? (
           <button className="btn btn-primary" onClick={next}>Tiếp tục →</button>
         ) : (
-          <button className="btn btn-primary" onClick={complete}>Hoàn tất</button>
+          <button className="btn btn-primary" onClick={() => complete(false)}>Hoàn tất</button>
         )}
       </div>
     </div>
   );
 }
+
+/* ===========================================================
+   Các loại câu hỏi (giữ nguyên logic bạn đang dùng)
+   =========================================================== */
 
 function Question({ q, index, immediate, onAnswered }) {
   return (
@@ -175,7 +255,7 @@ function MultiChoice({ q, immediate, onAnswered }) {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id);
       else n.add(id);
-      // Đánh dấu đã trả lời nếu có ít nhất 1 chọn
+      // đánh dấu đã trả lời (mỗi lần thay đổi)
       const done = n.size > 0;
       const isAllCorrect = done && equalSets(n, new Set(q.correct));
       onAnswered?.({ correct: isAllCorrect, choices: Array.from(n) });
@@ -254,7 +334,6 @@ function BinaryTwoCols({ q, onAnswered }) {
 
   const doCheck = () => {
     setChecked(true);
-    // coi là “đã hoàn thành” khi người dùng bấm Kiểm tra
     const allIds = [...left.map((id) => ({ id, side: "left" })), ...right.map((id) => ({ id, side: "right" }))];
     const allCorrect = allIds.every(({ id, side }) =>
       (side === "left" && isCorrectLeft(id)) || (side === "right" && isCorrectRight(id))
@@ -310,7 +389,6 @@ function DragDropTargets({ q, onAnswered }) {
 
   const correct = (tId) => mapping[tId] && q.correctMapping[tId] === mapping[tId];
 
-  // HTML5 drag
   const handleDragStart = (e, optionId) => e.dataTransfer.setData("text/opt", optionId);
   const handleDrop = (e, targetId) => {
     const optionId = e.dataTransfer.getData("text/opt");
