@@ -1,3 +1,4 @@
+// ...existing code...
 import React, { useState, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import "./login.css";
@@ -12,28 +13,31 @@ export default function LoginPage() {
 
   const quizId = useMemo(() => sp.get("quiz") || "", [sp]);
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    setErr("");
-    setLoading(true);
-    try {
-      const res = await fetch("http://localhost:4000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quizId, username: email, password: pwd }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
-      // Lưu token (nếu muốn)
-      localStorage.setItem("token", data.token);
-      // Điều hướng vào trang làm bài (ví dụ /practice?quiz=...)
-      navigate(`/practice?quiz=${quizId}`);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ... các import & state như bạn đang có
+const onSubmit = async (e) => {
+  e.preventDefault();
+  setErr("");
+  setLoading(true);
+  try {
+    const res = await fetch("http://localhost:4000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quizId, username: email, password: pwd }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
+
+    // Lưu token (và quizId)
+    localStorage.setItem("token", data.token);
+    // 👉 chuyển sang trang làm bài
+    navigate(`/quiz/${quizId}`);
+  } catch (e) {
+    setErr(e.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="login-page">
