@@ -152,15 +152,20 @@ export default function IC3Dashboard() {
                 {[1,2,3,4,5].map(i => (
   <article className="card" key={i} data-testid={`lv2-card-${i}`}>
     {/* ... */}
-    <div className="card-actions">
-      <span className="card-meta">~15 câu hỏi</span>
-      <button
-        type="button"
-        className="btn-primary"
-        onClick={() => navigate(`/login?quiz=ic3-lv2-${i}`)}
-      >
-        Vào bài
-      </button>
+    <div className="card-badge">{i}</div>
+    <div className="card-body">
+      <h3 className="card-title">{`IC3 GS6 Level 2 - Bài ${i}`}</h3>
+      <p className="card-text">Bài luyện tập nâng cao – thời lượng ~15 phút</p>
+      <div className="card-actions">
+        <span className="card-meta">~15 câu hỏi</span>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => navigate(`/login?quiz=ic3-lv2-${i}`)}
+        >
+          Vào bài
+        </button>
+      </div>
     </div>
   </article>
 ))}
@@ -192,15 +197,21 @@ export default function IC3Dashboard() {
                 {[1,2,3,4,5].map(i => (
   <article className="card" key={i} data-testid={`lv3-card-${i}`}>
     {/* ... */}
-    <div className="card-actions">
-      <span className="card-meta">~15 câu hỏi</span>
-      <button
-        type="button"
-        className="btn-primary"
-        onClick={() => navigate(`/login?quiz=ic3-lv3-${i}`)}
-      >
-        Vào bài
-      </button>
+    <div className="card-badge">{i}</div>
+    <div className="card-body">
+      <h3 className="card-title">{`IC3 GS6 Level 3 - Bài ${i}`}</h3>
+      <p className="card-text">Bài luyện tập nâng cao – thời lượng ~15 phút</p>
+      <div className="card-actions"></div>
+      <div className="card-actions">
+        <span className="card-meta">~15 câu hỏi</span>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => navigate(`/login?quiz=ic3-lv3-${i}`)}
+        >
+          Vào bài
+        </button>
+      </div>
     </div>
   </article>
 ))}
