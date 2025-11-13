@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./homepage.css";
 
 export default function HomePage() {
@@ -15,6 +15,21 @@ export default function HomePage() {
     { big: "24/7", small: "Hỗ trợ" },
   ];
 
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!localStorage.getItem("token");
+  });
+
+  useEffect(() => {
+    const sync = () => setIsLoggedIn(!!localStorage.getItem("token"));
+    window.addEventListener("storage", sync);
+    window.addEventListener("auth-changed", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("auth-changed", sync);
+    };
+  }, []);
+
   return (
     <div className="page">
       <header className="header">
@@ -29,10 +44,11 @@ export default function HomePage() {
             <a href="#courses">Khoá nổi bật</a>
             <a href="#contact">Liên hệ</a>
           </nav>
-          <div className="cta">
-            <button className="btn">Đăng nhập</button>
-            <button className="btn btn-primary">Đăng ký</button>
-          </div>
+          {!isLoggedIn && (
+            <div className="cta">
+              <button className="btn btn-primary">Đăng ký ngay</button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -179,9 +195,9 @@ export default function HomePage() {
           </div>
           <div>
             <div className="section-title" style={{fontSize:18}}>Liên hệ</div>
-            <p className="p" style={{margin:"6px 0"}}>✉️ contact@ic3.edu.vn</p>
-            <p className="p" style={{margin:"6px 0"}}>📞 0123 456 789</p>
-            <p className="p" style={{margin:"6px 0"}}>📍 123 Trần Phú, Hà Nội</p>
+            <p className="p" style={{margin:"6px 0"}}>✉️ tuyensinh@huflit.edu.vn</p>
+            <p className="p" style={{margin:"6px 0"}}>📞 1900 2800</p>
+            <p className="p" style={{margin:"6px 0"}}>📍 806 Quốc lộ 22, Ấp Mỹ Hòa 3, Xã Tân Xuân, Huyện Hóc Môn, Thành phố Hồ Chí Minh.</p>
           </div>
           <div>
             <div className="section-title" style={{fontSize:18}}>Tài nguyên</div>

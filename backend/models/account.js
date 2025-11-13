@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const AccountSchema = new mongoose.Schema(
   {
-    quizId: { type: String, required: true, index: true }, // mỗi bài có tài khoản riêng
+    quizId: { type: String, required: true, index: true }, 
     username: { type: String, required: true },
     passwordHash: { type: String, required: true }
   },

@@ -75,3 +75,8 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color
 .foot{
   margin:6px 0 0; color:var(--muted); font-size:13px; text-align:center;
 }
+.btn-switch{
+  border:0; background:transparent; padding:0 4px; color:var(--brand1);
+  font-weight:700; cursor:pointer;
+}
+.btn-switch:hover{ text-decoration:underline; }

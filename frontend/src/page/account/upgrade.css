@@ -1,0 +1,117 @@
+.upgrade-page{
+  min-height:100vh;
+  background:linear-gradient(180deg,#f8fafc,#ffffff);
+  padding:40px 24px;
+  color:#0f172a;
+  font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+}
+.upgrade-head{
+  max-width:720px;
+  margin:0 auto 24px;
+  text-align:center;
+}
+.upgrade-head h1{
+  margin:0;
+  font-size:32px;
+  font-weight:800;
+}
+.upgrade-head p{
+  margin:12px 0 0;
+  color:#64748b;
+  font-size:16px;
+}
+.plan-grid{
+  display:grid;
+  gap:20px;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  max-width:960px;
+  margin:0 auto;
+}
+.plan-card{
+  position:relative;
+  background:#fff;
+  border-radius:18px;
+  border:1px solid #e2e8f0;
+  padding:24px;
+  box-shadow:0 18px 45px rgba(15,23,42,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.plan-card.featured{
+  border:1px solid rgba(37,99,235,0.4);
+  box-shadow:0 26px 60px rgba(37,99,235,0.18);
+}
+.plan-tag{
+  position:absolute;
+  top:18px;
+  right:20px;
+  background:rgba(37,99,235,0.12);
+  color:#1d4ed8;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+.plan-card h2{
+  margin:0;
+  font-size:22px;
+  font-weight:700;
+}
+.plan-sub{
+  margin:0;
+  color:#475569;
+  font-size:14px;
+}
+.plan-price{
+  font-size:28px;
+  font-weight:800;
+  color:#0ea5e9;
+}
+.plan-list{
+  list-style:none;
+  margin:0;
+  padding:0;
+  color:#0f172a;
+  display:grid;
+  gap:8px;
+  font-size:14px;
+}
+.plan-list li{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.btn-upgrade{
+  margin-top:auto;
+  border:0;
+  border-radius:12px;
+  padding:12px 16px;
+  background:linear-gradient(135deg,#2563eb,#06b6d4);
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+  transition:transform .15s ease;
+}
+.btn-upgrade:hover:not(:disabled){
+  transform:translateY(-2px);
+}
+.btn-upgrade:disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
+.upgrade-alert{
+  max-width:660px;
+  margin:0 auto 16px;
+  padding:14px 16px;
+  border-radius:12px;
+  font-weight:600;
+}
+.upgrade-alert.error{
+  background:#fee2e2;
+  color:#b91c1c;
+}
+.upgrade-alert.success{
+  background:#dcfce7;
+  color:#166534;
+}

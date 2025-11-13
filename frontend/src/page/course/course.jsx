@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./course.css";
 
 const ALL = "Tất cả";
@@ -17,6 +17,20 @@ export default function CoursesPage(){
   const [q, setQ] = useState("");
   const [cat, setCat] = useState(ALL);
   const [sort, setSort] = useState("phuhop");
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!localStorage.getItem("token");
+  });
+
+  useEffect(() => {
+    const sync = () => setIsLoggedIn(!!localStorage.getItem("token"));
+    window.addEventListener("storage", sync);
+    window.addEventListener("auth-changed", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("auth-changed", sync);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     let out = RAW.filter(c => (cat===ALL || c.cat===cat) && (c.title+" "+c.desc).toLowerCase().includes(q.toLowerCase()));
@@ -35,10 +49,12 @@ export default function CoursesPage(){
             <a href="/practice">Luyện tập</a>
             <a href="#!">Tài nguyên</a>
           </nav>
-          <div style={{display:'flex',gap:8}}>
-            <button className="btn">Đăng nhập</button>
-            <button className="btn btn-primary">Đăng ký</button>
-          </div>
+          {!isLoggedIn && (
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn">Đăng nhập</button>
+              <button className="btn btn-primary">Đăng ký</button>
+            </div>
+          )}
         </div>
       </header>
 

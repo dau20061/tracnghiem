@@ -7,11 +7,8 @@ export default function RequireAuth({ children }) {
   const location = useLocation();
 
   if (!token) {
-    // Nếu chưa login → quay lại /login?quiz=... (nếu đang ở /quiz/..)
-    const parts = location.pathname.split("/");
-    const qid = parts[1] === "quiz" ? parts[2] : "";
-    const search = qid ? `?quiz=${encodeURIComponent(qid)}` : "";
-    return <Navigate to={`/login${search}`} replace />;
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
   return children;
 }

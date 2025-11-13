@@ -6,6 +6,8 @@ import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import quizzesRoutes from "./routes/quizzes.js";
+import imagesRoutes from "./routes/images.js";
+import usersRoutes from "./routes/users.js";
 
 
 
@@ -13,13 +15,14 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-// Health check
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/users", usersRoutes);
 
+app.use("/api/images", imagesRoutes);
 app.use("/api/quizzes", quizzesRoutes);
 
 

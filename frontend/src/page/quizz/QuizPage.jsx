@@ -1,31 +1,112 @@
+// src/page/quiz/QuizPage.jsx
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "./quiz.css";
 
 const cx = (...a) => a.filter(Boolean).join(" ");
-
 const TEST_DURATION = 3 * 60; // 3 phút
 
 export default function QuizPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  const [user, setUser] = useState(null);
+  const [membershipLoading, setMembershipLoading] = useState(true);
+  const [locked, setLocked] = useState(true);
+  const [lockReason, setLockReason] = useState("Tài khoản của bạn hiện chưa nâng cấp.");
+
   const [mode, setMode] = useState("training"); // 'training' | 'testing'
-  const [idx, setIdx] = useState(0);            // câu hiện tại
+  const [idx, setIdx] = useState(0);            // câu hiện tại (index)
   const [answers, setAnswers] = useState({});   // { [qId]: { answered: true, ... } }
+  const [skipped, setSkipped] = useState(new Set()); // các câu đã bỏ qua
 
-  // timer cho chế độ testing
-  const [timeLeft, setTimeLeft] = useState(null); // giây còn lại
+  const [timeLeft, setTimeLeft] = useState(null);
   const timerRef = useRef(null);
-  const completedRef = useRef(false); // tránh gọi complete() nhiều lần
+  const completedRef = useRef(false);
 
-  // helper: đánh dấu đã trả lời
-  const markAnswered = (qid, info = {}) =>
+  const markAnswered = (qid, info = {}) => {
     setAnswers((prev) => ({ ...prev, [qid]: { ...(prev[qid] || {}), ...info, answered: true } }));
+    setSkipped((s) => {
+      if (!s.has(qid)) return s;
+      const n = new Set(s);
+      n.delete(qid);
+      return n;
+    });
+  };
+
+  const isMembershipActive = (u) => {
+    if (!u) return false;
+    if (u.membershipLevel === "free") return false;
+    if (!u.membershipExpiresAt) return false;
+    return new Date(u.membershipExpiresAt) > new Date();
+  };
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        if (isMembershipActive(parsed)) {
+          setLocked(false);
+          setLockReason("");
+        } else {
+          setLocked(true);
+          setLockReason("Tài khoản của bạn hiện chưa nâng cấp.");
+        }
+      } catch (_) {
+        // ignore parse error
+      }
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setMembershipLoading(false);
+      setLocked(true);
+      setLockReason("Bạn cần đăng nhập lại.");
+      return;
+    }
+
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.dispatchEvent(new Event("auth-changed"));
+          setMembershipLoading(false);
+          navigate("/login", { state: { from: `${location.pathname}${location.search}` } });
+          return;
+        }
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Không lấy được thông tin tài khoản");
+        setUser(json.user);
+        localStorage.setItem("user", JSON.stringify(json.user));
+        if (isMembershipActive(json.user)) {
+          setLocked(false);
+          setLockReason("");
+        } else {
+          setLocked(true);
+          setLockReason("Bạn cần nâng cấp gói Ngày/Tháng/Năm để làm bài.");
+        }
+      } catch (error) {
+        console.error(error);
+        setLocked(true);
+        setLockReason("Không xác định được trạng thái quyền truy cập.");
+      } finally {
+        setMembershipLoading(false);
+      }
+    };
+
+    fetchMe();
+  }, [navigate, quizId, location.pathname, location.search]);
 
   // tải đề
   useEffect(() => {
@@ -36,11 +117,11 @@ export default function QuizPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || "Không tải được đề");
         setData(json);
-        // reset trạng thái mỗi khi đổi quiz
         setIdx(0);
         setAnswers({});
-        // đặt thời gian ban đầu theo mode
+        setSkipped(new Set());
         setTimeLeft(mode === "testing" ? TEST_DURATION : null);
+        completedRef.current = false;
       } catch (e) {
         setErr(e.message);
       } finally {
@@ -48,31 +129,28 @@ export default function QuizPage() {
       }
     };
     run();
-
-    // cleanup khi unmount
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
-  // khi đổi mode: reset tiến trình & đồng hồ cho đơn giản/dễ dùng
+  // khi đổi mode, reset tiến trình đơn giản
   useEffect(() => {
     if (!data) return;
     setIdx(0);
     setAnswers({});
+    setSkipped(new Set());
     if (timerRef.current) clearInterval(timerRef.current);
     setTimeLeft(mode === "testing" ? TEST_DURATION : null);
     completedRef.current = false;
   }, [mode, data]);
 
-  // đồng hồ đếm ngược cho testing
+  // đồng hồ testing
   useEffect(() => {
     if (mode !== "testing" || timeLeft == null) return;
     if (timeLeft <= 0) {
       if (!completedRef.current) {
         completedRef.current = true;
-        complete(true); // hết giờ
+        complete(true);
       }
       return;
     }
@@ -87,20 +165,51 @@ export default function QuizPage() {
     if (!loading) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [idx, loading]);
 
+  if (membershipLoading) return <div className="quiz-wrap">Đang kiểm tra quyền truy cập…</div>;
+  if (locked) {
+    const expiresAt = user?.membershipExpiresAt ? new Date(user.membershipExpiresAt) : null;
+    return (
+      <div className="quiz-lock-screen">
+        <div className="lock-card">
+          <div className="lock-icon">🔒</div>
+          <h1>Chưa thể làm bài</h1>
+          <p className="lock-desc">{lockReason || "Bạn cần nâng cấp quyền để tiếp tục."}</p>
+          {expiresAt && (
+            <p className="lock-expire">Gói hiện tại hết hạn vào {expiresAt.toLocaleString("vi-VN")}</p>
+          )}
+          <div className="lock-actions">
+            <button className="btn btn-primary" onClick={() => navigate("/upgrade")}>
+              Nâng cấp ngay
+            </button>
+            <button className="btn btn-light" onClick={() => navigate("/")}>Về trang chủ</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) return <div className="quiz-wrap">Đang tải đề…</div>;
   if (err)      return <div className="quiz-wrap" style={{color:"#dc2626"}}>Lỗi: {err}</div>;
   if (!data)    return <div className="quiz-wrap">Không có dữ liệu</div>;
 
   const total = data.questions.length;
   const pct = Math.round(((idx + 1) / total) * 100);
+
   const prev = () => setIdx((i) => Math.max(0, i - 1));
-  const next = () => setIdx((i) => Math.min(total - 1, i + 1));
+  const next = () => {
+    const q = data.questions[idx];
+    const answered = !!answers[q.id]?.answered;
+    if (!answered) {
+      // đánh dấu câu hiện tại là skipped
+      setSkipped((s) => new Set([...s, q.id]));
+    }
+    setIdx((i) => Math.min(total - 1, i + 1));
+  };
+
   const doneCount = Object.values(answers).filter((x) => x?.answered).length;
 
   function complete(autoByTime = false) {
-    // tắt timer
     if (timerRef.current) clearInterval(timerRef.current);
-    // có thể tính điểm tại đây nếu cần (duyệt answers)
     const payload = { quizId, total, done: doneCount, ts: Date.now(), mode, autoByTime };
     sessionStorage.setItem("quizResult", JSON.stringify(payload));
     navigate(`/quiz/${quizId}/complete`, { state: payload });
@@ -114,72 +223,107 @@ export default function QuizPage() {
 
   const immediateFeedback = mode === "training" && !!data.settings?.immediateFeedback;
 
+  // ======= QUIZ NAV: xác định trạng thái màu cho từng câu =======
+  const statusOf = (i) => {
+    const q = data.questions[i];
+    if (answers[q.id]?.answered) return "done";       
+    if (skipped.has(q.id))         return "skipped";
+    return "pending";                                   
+  };
+
+  const jumpTo = (i) => setIdx(i);
+
   return (
-    <div className="quiz-wrap">
-      <header className="quiz-head">
-        <h1>{data.title}</h1>
-        <div className="mode-row">
-          <div className="mode-buttons">
-            <button
-              className={cx("btn", "btn-mode", mode === "training" && "active")}
-              onClick={() => setMode("training")}
-            >
-              Training
-            </button>
-            <button
-              className={cx("btn", "btn-mode", mode === "testing" && "active")}
-              onClick={() => setMode("testing")}
-            >
-              Testing (3 phút)
-            </button>
+    <div className="quiz-layout">
+      {/* Sidebar điều hướng */}
+      <aside className="quiz-nav">
+        <div className="quiz-nav-title">Quá Trình</div>
+        <div className="quiz-nav-grid">
+          {data.questions.map((q, i) => {
+            const st = statusOf(i);
+            const isCurrent = i === idx;
+            return (
+              <button
+                key={q.id}
+                className={cx("nav-cell", st, isCurrent && "current")}
+                onClick={() => jumpTo(i)}
+                title={`Câu ${i + 1}`}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+        <div className="quiz-nav-legend">
+          <span className="legend-box done" /> Đã trả lời
+          <span className="legend-box skipped" /> Bỏ qua
+          <span className="legend-box pending" /> Chưa làm
+        </div>
+      </aside>
+
+      {/* Nội dung chính */}
+      <div className="quiz-main">
+        <header className="quiz-head">
+          <h1>{data.title}</h1>
+
+          <div className="mode-row">
+            <div className="mode-buttons">
+              <button
+                className={cx("btn", "btn-mode", mode === "training" && "active")}
+                onClick={() => setMode("training")}
+              >
+                Training (không tính giờ)
+              </button>
+              <button
+                className={cx("btn", "btn-mode", mode === "testing" && "active")}
+                onClick={() => setMode("testing")}
+              >
+                Testing (3 phút)
+              </button>
+            </div>
+            {mode === "testing" && (
+              <div className={cx("timer", timeLeft !== null && timeLeft <= 30 && "warn")}>
+                ⏱ {formatTime(timeLeft ?? 0)}
+              </div>
+            )}
           </div>
 
-          {mode === "testing" && (
-            <div className={cx("timer", timeLeft !== null && timeLeft <= 30 && "warn")}>
-              ⏱ {formatTime(timeLeft ?? 0)}
-            </div>
+          <div className="progress"><div className="progress-bar" style={{ width: `${pct}%` }} /></div>
+          <div className="progress-meta">
+            Câu {idx + 1}/{total} • {pct}% • Đã hoàn thành: {doneCount}/{total}
+          </div>
+        </header>
+
+        <ol className="quiz-list">
+          {data.questions.map((q, i) => (
+            <li key={q.id} className={cx("quiz-item", i !== idx && "hidden-question")} aria-hidden={i !== idx}>
+              <Question
+                q={q}
+                index={i + 1}
+                immediate={immediateFeedback}
+                onAnswered={(info) => markAnswered(q.id, info)}
+              />
+            </li>
+          ))}
+        </ol>
+
+        <div className="pager">
+          <button className="btn" onClick={prev} disabled={idx === 0}>← Lùi lại</button>
+          <div className="pager-gap" />
+          {idx < total - 1 ? (
+            <button className="btn btn-primary" onClick={next}>Tiếp tục →</button>
+          ) : (
+            <button className="btn btn-primary" onClick={() => complete(false)}>Hoàn tất</button>
           )}
         </div>
-
-        <div className="progress">
-          <div className="progress-bar" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="progress-meta">
-          Câu {idx + 1}/{total} • {pct}% • Đã hoàn thành: {doneCount}/{total}
-        </div>
-      </header>
-
-      {/* Chỉ hiển thị 1 câu/lần (giữ state để user quay lại không mất lựa chọn) */}
-      <ol className="quiz-list">
-        {data.questions.map((q, i) => (
-          <li key={q.id} className={cx("quiz-item", i !== idx && "hidden-question")} aria-hidden={i !== idx}>
-            <Question
-              q={q}
-              index={i + 1}
-              immediate={immediateFeedback}
-              onAnswered={(info) => markAnswered(q.id, info)}
-            />
-          </li>
-        ))}
-      </ol>
-
-      <div className="pager">
-        <button className="btn" onClick={prev} disabled={idx === 0}>← Lùi lại</button>
-        <div className="pager-gap" />
-        {idx < total - 1 ? (
-          <button className="btn btn-primary" onClick={next}>Tiếp tục →</button>
-        ) : (
-          <button className="btn btn-primary" onClick={() => complete(false)}>Hoàn tất</button>
-        )}
       </div>
     </div>
   );
 }
 
-/* ===========================================================
-   Các loại câu hỏi (giữ nguyên logic bạn đang dùng)
-   =========================================================== */
-
+/* ==============================
+   Các loại câu hỏi
+   ============================== */
 function Question({ q, index, immediate, onAnswered }) {
   return (
     <div className="card">
@@ -200,6 +344,7 @@ function Question({ q, index, immediate, onAnswered }) {
       {q.type === "binary" && <BinaryTwoCols q={q} onAnswered={onAnswered} />}
       {q.type === "dragdrop" && <DragDropTargets q={q} onAnswered={onAnswered} />}
       {q.type === "image_single" && <SingleChoice q={q} immediate={immediate} onAnswered={onAnswered} />}
+      {q.type === "image_grid" && <ImageGridChoice q={q} immediate={immediate} onAnswered={onAnswered} />}
     </div>
   );
 }
@@ -247,7 +392,7 @@ function SingleChoice({ q, immediate, onAnswered }) {
   );
 }
 
-/* ========== Loại 2: chọn nhiều đáp án (2 đúng) ========== */
+/* ========== Loại 2: chọn nhiều đáp án ========== */
 function MultiChoice({ q, immediate, onAnswered }) {
   const [sels, setSels] = useState(new Set());
   const toggle = (id) =>
@@ -255,7 +400,6 @@ function MultiChoice({ q, immediate, onAnswered }) {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id);
       else n.add(id);
-      // đánh dấu đã trả lời (mỗi lần thay đổi)
       const done = n.size > 0;
       const isAllCorrect = done && equalSets(n, new Set(q.correct));
       onAnswered?.({ correct: isAllCorrect, choices: Array.from(n) });
@@ -289,16 +433,12 @@ function MultiChoice({ q, immediate, onAnswered }) {
 
       {immediate && done && (
         <div className="feedback">
-          {isAllCorrect ? (
-            "✅ Chính xác!"
-          ) : (
+          {isAllCorrect ? "✅ Chính xác!" : (
             <>
               ❌ Chưa đúng. Đáp án đúng: <strong>{q.correct.join(", ")}</strong>
-              {q.options
-                .filter((o) => q.correct.includes(o.id))
-                .map((o) => (
-                  <div key={o.id} className="explain">• {o.id} – {o.text}</div>
-                ))}
+              {q.options.filter((o) => q.correct.includes(o.id)).map((o) => (
+                <div key={o.id} className="explain">• {o.id} – {o.text}</div>
+              ))}
             </>
           )}
         </div>
@@ -311,6 +451,51 @@ function MultiChoice({ q, immediate, onAnswered }) {
   );
 }
 const equalSets = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+
+/* ========== New: Image grid single-choice (4 images) ========== */
+function ImageGridChoice({ q, immediate, onAnswered }) {
+  const [sel, setSel] = useState(null);
+  const isCorrect = sel && sel === q.correct;
+  const showCorrect = immediate && sel && sel !== q.correct;
+
+  const choose = (id) => {
+    setSel(id);
+    onAnswered?.({ correct: id === q.correct, choice: id });
+  };
+
+  return (
+    <>
+      <div className="image-grid-choice">
+        {q.options.map((o) => {
+          const chosen = sel === o.id;
+          const wrong = immediate && chosen && o.id !== q.correct;
+          const right = immediate && chosen && o.id === q.correct;
+          return (
+            <button
+              key={o.id}
+              className={cx("img-opt", chosen && "opt-chosen", right && "opt-correct", wrong && "opt-wrong")}
+              onClick={() => choose(o.id)}
+            >
+              <div className="img-opt-wrap">
+                <img src={o.text} alt={o.id} />
+              </div>
+              <div className="img-opt-id">{o.id}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {showCorrect && (
+        <div className="feedback">
+          ❌ Sai. Đáp án đúng: <strong>{q.correct}</strong>
+        </div>
+      )}
+      {sel && !immediate && (
+        <div className="feedback">{isCorrect ? "✅ Chính xác!" : `❌ Sai. Đáp án đúng là ${q.correct}.`}</div>
+      )}
+    </>
+  );
+}
 
 /* ========== Loại 3: 2 cột Có / Không ========== */
 function BinaryTwoCols({ q, onAnswered }) {
@@ -379,7 +564,7 @@ function Column({ title, ids, item, checked, isCorrect, onToggle }) {
 
 /* ========== Loại 4: kéo/thả vào ô ========== */
 function DragDropTargets({ q, onAnswered }) {
-  const [mapping, setMapping] = useState({}); // targetId -> optionId
+  const [mapping, setMapping] = useState({});
   const [checked, setChecked] = useState(false);
   const used = new Set(Object.values(mapping));
   const unusedBank = q.bank.filter((o) => !used.has(o.id));

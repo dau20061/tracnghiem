@@ -1,20 +1,18 @@
+// backend/routes/quizzes.js
 import { Router } from "express";
 import Quiz from "../models/Quiz.js";
 
 const r = Router();
 
-/** Tạo mới quiz (POST) — body chứa đúng cấu trúc bạn gửi **/
+/** Tạo mới quiz (POST) **/
 r.post("/", async (req, res) => {
   try {
-    // Cho phép client tự cung cấp _id string
     const { _id, title, settings, questions } = req.body || {};
     if (!_id || !title || !Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ message: "Thiếu _id/title/questions" });
     }
-    // Tạo hoặc cập nhật (nếu muốn strictly tạo mới thì dùng .create và bắt duplicate key)
     const doc = await Quiz.findById(_id);
     if (doc) {
-      // Nếu muốn cập nhật khi trùng _id
       doc.title = title;
       doc.settings = settings || {};
       doc.questions = questions;
@@ -42,10 +40,27 @@ r.get("/:id", async (req, res) => {
   }
 });
 
-/** (Tuỳ chọn) danh sách tất cả quiz **/
+/** Danh sách tất cả quiz **/
 r.get("/", async (_req, res) => {
-  const list = await Quiz.find({}, { _id: 1, title: 1, "settings.immediateFeedback": 1 }).lean();
-  res.json(list);
+  try {
+    const list = await Quiz.find({}, { _id: 1, title: 1, "settings.immediateFeedback": 1 }).lean();
+    res.json(list);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+/** Xoá quiz theo id **/
+r.delete("/:id", async (req, res) => {
+  try {
+    const del = await Quiz.findByIdAndDelete(req.params.id);
+    if (!del) return res.status(404).json({ message: "Quiz không tồn tại" });
+    res.json({ message: "Đã xoá quiz", _id: req.params.id });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
 });
 
 export default r;

@@ -1,42 +1,78 @@
 // ...existing code...
-import React, { useState, useMemo } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./login.css";
 
 export default function LoginPage() {
-  const [email, setEmail]   = useState("");   // hoặc username
-  const [pwd, setPwd]       = useState("");
+  const [username, setUsername] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [err, setErr]       = useState("");
-  const [sp] = useSearchParams();
+  const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
+  const [mode, setMode] = useState("login");
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = location.state?.from || "/";
+  const quizId = useMemo(() => {
+    if (typeof fromPath === "string" && fromPath.startsWith("/quiz/")) {
+      return fromPath.split("/")[2] || "";
+    }
+    return "";
+  }, [fromPath]);
 
-  const quizId = useMemo(() => sp.get("quiz") || "", [sp]);
+  const saveAuth = (token, user) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    window.dispatchEvent(new Event("auth-changed"));
+  };
 
-  // ... các import & state như bạn đang có
-const onSubmit = async (e) => {
-  e.preventDefault();
-  setErr("");
-  setLoading(true);
-  try {
-    const res = await fetch("http://localhost:4000/api/auth/login", {
+  const handleLogin = async () => {
+    const res = await fetch("http://localhost:4000/api/users/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quizId, username: email, password: pwd }),
+      body: JSON.stringify({ username, password: pwd }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
+    saveAuth(data.token, data.user);
+    const next = typeof fromPath === "string" && fromPath && fromPath !== "/login"
+      ? fromPath
+      : "/";
+    navigate(next, { replace: true });
+  };
 
-    // Lưu token (và quizId)
-    localStorage.setItem("token", data.token);
-    // 👉 chuyển sang trang làm bài
-    navigate(`/quiz/${quizId}`);
-  } catch (e) {
-    setErr(e.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleRegister = async () => {
+    if (pwd.length < 6) throw new Error("Mật khẩu tối thiểu 6 ký tự");
+    if (pwd !== confirm) throw new Error("Mật khẩu nhập lại không khớp");
+    const res = await fetch("http://localhost:4000/api/users/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: pwd }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || "Đăng ký thất bại");
+    setNotice("Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.");
+    setMode("login");
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setNotice("");
+    setLoading(true);
+    try {
+      if (mode === "login") {
+        await handleLogin();
+      } else {
+        await handleRegister();
+      }
+    } catch (error) {
+      setErr(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -46,7 +82,9 @@ const onSubmit = async (e) => {
           <div className="logo">QZ</div>
           <div className="brand-text">
             <h1 className="title">QUIZ TRẮC NGHIỆM</h1>
-            <p className="subtitle">Vui lòng đăng nhập để truy cập</p>
+            <p className="subtitle">
+              {mode === "login" ? "Vui lòng đăng nhập để truy cập" : "Tạo tài khoản để bắt đầu"}
+            </p>
             {quizId && (
               <p className="subtitle" style={{ marginTop: 4 }}>
                 <strong>Bài:</strong> #{quizId}
@@ -56,14 +94,14 @@ const onSubmit = async (e) => {
         </div>
 
         <form className="form" onSubmit={onSubmit}>
-          <label className="label" htmlFor="email">Tài khoản</label>
+          <label className="label" htmlFor="username">Tài khoản</label>
           <input
-            id="email"
+            id="username"
             type="text"
             className="input"
             placeholder="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
 
@@ -78,12 +116,46 @@ const onSubmit = async (e) => {
             required
           />
 
+          {mode === "register" && (
+            <>
+              <label className="label" htmlFor="confirm">Nhập lại mật khẩu</label>
+              <input
+                id="confirm"
+                type="password"
+                className="input"
+                placeholder="Nhập lại mật khẩu"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+              />
+            </>
+          )}
+
+          {notice && <div style={{ color: "#16a34a", fontSize: 13 }}>{notice}</div>}
           {err && <div style={{ color: "#dc2626", fontSize: 13 }}>{err}</div>}
 
           <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
           </button>
         </form>
+
+        <div className="foot">
+          {mode === "login" ? (
+            <>
+              Chưa có tài khoản?{" "}
+              <button className="btn-switch" type="button" onClick={() => { setMode("register"); setErr(""); setNotice(""); }}>
+                Đăng ký ngay
+              </button>
+            </>
+          ) : (
+            <>
+              Đã có tài khoản?{" "}
+              <button className="btn-switch" type="button" onClick={() => { setMode("login"); setErr(""); }}>
+                Đăng nhập
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

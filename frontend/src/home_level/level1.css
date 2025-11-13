@@ -20,7 +20,7 @@ body {
 }
 .page { min-height: 100dvh; display: flex; flex-direction: column; }
 .main { flex: 1; width: 100%; }
-.container { max-width: 1100px; width: 100%; margin: 0 auto; padding: 0 16px; }
+.container { max-width: 1100px; width: 100%; margin: 0 auto }
 
 /* Header */
 .site-header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.8); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
@@ -70,13 +70,12 @@ body {
 .card-actions { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .card-meta { font-size: 12px; color: var(--muted); }
 
-/* Buttons */
+
 .btn-primary { background: linear-gradient(135deg, var(--brand1), var(--brand2)); border: 0; color: #fff; padding: 10px 14px; border-radius: 12px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
 .btn-primary:hover { filter: brightness(1.05); }
 .btn-outline { background: transparent; border: 1px solid var(--border); padding: 10px 14px; border-radius: 12px; font-weight: 600; cursor: pointer; }
 .btn-outline:hover { background: #f8fafc; }
 
-/* Footer */
 .site-footer { margin-top: 36px; border-top: 1px solid var(--border); background: #fff; }
 .footer-inner { max-width: 1100px; margin: 0 auto; padding: 28px 16px; display: grid; gap: 18px; }
 @media (min-width: 768px) { .footer-inner { grid-template-columns: repeat(3, 1fr); } }

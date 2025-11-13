@@ -24,7 +24,7 @@ const DragTargetSchema = new mongoose.Schema({
 // Câu hỏi tổng quát — các field “union” tùy theo type
 const QuestionSchema = new mongoose.Schema({
   id:      { type: String, required: true },
-  type:    { type: String, enum: ["single", "multi", "binary", "dragdrop", "image_single"], required: true },
+  type:    { type: String, enum: ["single", "multi", "binary", "dragdrop", "image_single", "image_grid"], required: true },
   prompt:  { type: String, required: true },
   image:   { type: String }, // dùng cho image_single
 
@@ -52,6 +52,11 @@ QuestionSchema.path("type").validate(function () {
   if (t === "single" || t === "image_single") {
     if (!Array.isArray(this.options) || typeof this.correct !== "string") return false;
   }
+  if (t === "image_grid") {
+    // image grid expects an options array of 4 image URLs and a string correct id
+    if (!Array.isArray(this.options) || this.options.length !== 4) return false;
+    if (typeof this.correct !== "string") return false;
+  }
   if (t === "multi") {
     if (!Array.isArray(this.options) || !Array.isArray(this.correct) || this.correct.length < 2) return false;
   }
@@ -67,7 +72,6 @@ QuestionSchema.path("type").validate(function () {
 }, "Invalid question payload for given type");
 
 const QuizSchema = new mongoose.Schema({
-  // Cho phép bạn dùng string _id (ví dụ "quiz-ic3-gs6-demo")
   _id:      { type: String, required: true }, 
   title:    { type: String, required: true },
   settings: {

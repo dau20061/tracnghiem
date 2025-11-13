@@ -24,9 +24,6 @@ router.post("/accounts", async (req, res) => {
   }
 });
 
-// (Tuỳ chọn) Tạo hàng loạt nhanh
-// POST /api/admin/seed
-// body: { quizId, accounts: [{username, password}, ...] }
 router.post("/seed", async (req, res) => {
   try {
     const { quizId, accounts = [] } = req.body || {};

@@ -113,14 +113,13 @@ export default function IC3Dashboard() {
                       <p className="card-text">{item.description}</p>
                       <div className="card-actions">
                         <span className="card-meta">~15 câu hỏi</span>
-                 <button
-  type="button"
-  className="btn-primary"
-  onClick={() => navigate(`/login?quiz=ic3-lv1-${item.id}`)}
->
-  Vào bài
-</button>
-              
+                                        <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => navigate(`/quiz/ic3-lv1-${item.id}`)}
+                        >
+                        Vào bài
+                        </button>
                      </div>
                     </div>
                   </article>
@@ -151,30 +150,28 @@ export default function IC3Dashboard() {
               <div className="card-grid">
                 {[1,2,3,4,5].map(i => (
   <article className="card" key={i} data-testid={`lv2-card-${i}`}>
-    {/* ... */}
     <div className="card-badge">{i}</div>
     <div className="card-body">
       <h3 className="card-title">{`IC3 GS6 Level 2 - Bài ${i}`}</h3>
       <p className="card-text">Bài luyện tập nâng cao – thời lượng ~15 phút</p>
       <div className="card-actions">
         <span className="card-meta">~15 câu hỏi</span>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => navigate(`/login?quiz=ic3-lv2-${i}`)}
-        >
-          Vào bài
-        </button>
-      </div>
-    </div>
-  </article>
-))}
+                    <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => navigate(`/quiz/ic3-lv2-${i}`)}
+                    >
+                    Vào bài
+                    </button>
+                </div>
+                </div>
+            </article>
+            ))}
 
-              </div>
-            </section>
-          </>
-        )}
-
+                    </div>
+                    </section>
+                </>
+                )}
         {tab === "lv3" && (
           <>
             <section className="hero">
@@ -196,7 +193,6 @@ export default function IC3Dashboard() {
               <div className="card-grid">
                 {[1,2,3,4,5].map(i => (
   <article className="card" key={i} data-testid={`lv3-card-${i}`}>
-    {/* ... */}
     <div className="card-badge">{i}</div>
     <div className="card-body">
       <h3 className="card-title">{`IC3 GS6 Level 3 - Bài ${i}`}</h3>
@@ -207,7 +203,7 @@ export default function IC3Dashboard() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => navigate(`/login?quiz=ic3-lv3-${i}`)}
+          onClick={() => navigate(`/quiz/ic3-lv3-${i}`)}
         >
           Vào bài
         </button>
@@ -238,9 +234,9 @@ export default function IC3Dashboard() {
           <div>
             <div className="footer-title">Liên hệ</div>
             <ul className="footer-list">
-              <li>✉️ contact@ic3.edu.vn</li>
-              <li>📞 0123 456 789</li>
-              <li>📍 123 Trần Phú, Hà Nội</li>
+              <li>✉️ tuyensinh@huflit.edu.vn</li>
+              <li>📞 1900 2800</li>
+              <li>📍 806 Quốc lộ 22, Ấp Mỹ Hòa 3, Xã Tân Xuân, Huyện Hóc Môn, Thành phố Hồ Chí Minh.</li>
             </ul>
           </div>
           <div>

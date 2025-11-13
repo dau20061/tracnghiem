@@ -3,7 +3,7 @@
 html,body,#root{height:100%}
 body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#f9fbff,#fff)}
 .page{min-height:100dvh;display:flex;flex-direction:column}
-.container{max-width:1200px;margin:0 auto;width:100%}
+.container{max-width:1200px;margin:0 auto;width:100%;}
 
 /* Header */
 .header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}

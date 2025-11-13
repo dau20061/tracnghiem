@@ -30,6 +30,16 @@
 
 .hint{color:#9aa1ad;font-size:13px}
 
+/* Image grid choice */
+.image-grid-choice{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+.img-opt{padding:0;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;flex-direction:column}
+.img-opt-wrap{width:100%;height:160px;display:flex;align-items:center;justify-content:center;background:#f8fafc}
+.img-opt-wrap img{width:100%;height:100%;object-fit:cover}
+.img-opt-id{padding:8px;text-align:center;font-weight:700}
+.img-opt.opt-chosen{outline:3px solid rgba(37,99,235,0.18)}
+.img-opt.opt-correct{border-color:#86efac;background:#f0fdf4}
+.img-opt.opt-wrong{border-color:#fecaca;background:#fff1f2}
+
 /* Binary 2 cột */
 .binary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 .col{border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
@@ -98,4 +108,77 @@
 .timer-pill{
   display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; background:#0ea5e9; color:#fff; font-weight:700; font-size:12px;
 }
+
+/* Layout 2 cột: nav trái + nội dung phải */
+.quiz-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; max-width: 1160px; margin: 24px auto; padding: 0 16px; }
+@media (max-width: 900px){ .quiz-layout { grid-template-columns: 1fr; } }
+
+/* Sidebar nav */
+.quiz-nav { position: sticky; top: 12px; align-self: start; background: #fff; border:1px solid var(--border); border-radius: 12px; padding: 12px; }
+.quiz-nav-title { font-weight: 800; color:#f59e0b; margin-bottom: 10px; }
+.quiz-nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.nav-cell { border:1px solid var(--border); background:#fff; border-radius:10px; height:36px; display:flex; align-items:center; justify-content:center; font-weight:700; cursor:pointer; }
+.nav-cell.current { outline:2px solid #94a3b8; }
+.nav-cell.done    { background:#f0fdf4; border-color:#86efac; }
+.nav-cell.skipped { background:#fff1f2; border-color:#fecaca; }
+.nav-cell.pending { background:#fff; }
+.quiz-nav-legend { display:grid; grid-template-columns: auto 1fr; align-items:center; gap:8px 10px; margin-top:12px; color:#64748b; font-size:13px; }
+.legend-box { width:16px; height:16px; border-radius:4px; display:inline-block; border:1px solid var(--border); margin-right:6px; }
+.legend-box.done { background:#f0fdf4; border-color:#86efac; }
+.legend-box.skipped { background:#fff1f2; border-color:#fecaca; }
+.legend-box.pending { background:#fff; }
+
+/* Phần nội dung bên phải giữ style cũ */
+.quiz-main { min-width: 0; }
+
+/* (các style sẵn có của bạn giữ nguyên bên dưới) */
+
+
+/* Locked screen */
+.quiz-lock-screen{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(180deg,#f8fafc,#ffffff);
+  padding:32px 16px;
+}
+.lock-card{
+  width:100%;
+  max-width:420px;
+  background:#fff;
+  border-radius:20px;
+  border:1px solid #e2e8f0;
+  box-shadow:0 18px 45px rgba(15,23,42,0.08);
+  padding:28px;
+  text-align:center;
+}
+.lock-icon{
+  font-size:42px;
+  margin-bottom:8px;
+}
+.lock-card h1{
+  margin:8px 0 4px;
+  font-size:24px;
+  font-weight:800;
+}
+.lock-desc{
+  margin:6px 0 12px;
+  color:#475569;
+  font-size:15px;
+}
+.lock-expire{
+  margin:0 0 12px;
+  color:#0f172a;
+  font-size:13px;
+  background:#f1f5f9;
+  padding:8px;
+  border-radius:10px;
+}
+.lock-actions{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
 
