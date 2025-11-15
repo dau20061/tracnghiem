@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import "./homepage.css";
 
+const PLAN_LABEL = {
+  day: "Gói 1 ngày",
+  month: "Gói 1 tháng", 
+  year: "Gói 1 năm",
+};
+
 export default function HomePage() {
+  const [searchParams] = useSearchParams();
+  const [paymentSuccess, setPaymentSuccess] = useState(null);
+
   const programs = [
     { id: "IC3", title: "IC3 GS6", desc: "Luyện thi IC3 GS6 theo lộ trình 3 cấp độ, bài tập bám sát đề thi.", meta: "3 cấp • 150+ bài", cta: "Vào lộ trình" },
     { id: "ICDL", title: "ICDL", desc: "Ôn tập ICDL theo modules, demo test và mẹo làm bài hiệu quả.", meta: "8 module • Demo test", cta: "Khám phá" },
@@ -30,6 +40,42 @@ export default function HomePage() {
     };
   }, []);
 
+  // Check payment success from URL params
+  useEffect(() => {
+    const appTransId = searchParams.get("appTransId");
+    const status = searchParams.get("status"); 
+    const plan = searchParams.get("plan");
+
+    if (appTransId && status === "paid" && plan) {
+      setPaymentSuccess({
+        plan: PLAN_LABEL[plan] || plan,
+        appTransId,
+      });
+      
+      // Clear URL params after 5 seconds
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setPaymentSuccess(null);
+      }, 5000);
+
+      // Refresh user data
+      const token = localStorage.getItem("token");
+      if (token) {
+        fetch("http://localhost:4000/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.user) {
+            localStorage.setItem("user", JSON.stringify(data.user));
+            window.dispatchEvent(new Event("auth-changed"));
+          }
+        })
+        .catch(console.warn);
+      }
+    }
+  }, [searchParams]);
+
   return (
     <div className="page">
       <header className="header">
@@ -46,13 +92,41 @@ export default function HomePage() {
           </nav>
           {!isLoggedIn && (
             <div className="cta">
-              <button className="btn btn-primary">Đăng ký ngay</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => (window.location.href = "/login?signup=1")}
+              >
+                Đăng ký ngay
+              </button>
             </div>
           )}
         </div>
       </header>
 
       <main>
+        {/* Success Notification */}
+        {paymentSuccess && (
+          <div className="payment-success-banner">
+            <div className="container">
+              <div className="success-content">
+                <div className="success-icon">✅</div>
+                <div className="success-text">
+                  <h3>Thanh toán thành công!</h3>
+                  <p>Bạn đã đăng ký thành công <strong>{paymentSuccess.plan}</strong>. Tài khoản của bạn đã được nâng cấp.</p>
+                  <p className="transaction-id">Mã giao dịch: {paymentSuccess.appTransId}</p>
+                </div>
+                <button 
+                  className="close-btn"
+                  onClick={() => setPaymentSuccess(null)}
+                  title="Đóng"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hero */}
         <section className="hero">
           <div className="container hero-card">

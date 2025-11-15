@@ -21,6 +21,12 @@ export default function AdminLayout() {
           <NavLink to="/admin/users" className={navLinkClass}>
             Quản lý người dùng
           </NavLink>
+          <NavLink to="/admin/revenue-stats" className={navLinkClass}>
+            Thống kê doanh thu
+          </NavLink>
+          <NavLink to="/admin/support" className={navLinkClass}>
+            Chăm sóc khách hàng
+          </NavLink>
         </nav>
         <button type="button" className="admin-exit" onClick={() => navigate("/")}>
           ← Về trang chính

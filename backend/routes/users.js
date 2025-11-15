@@ -7,6 +7,7 @@ const router = Router();
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 let adminKeyWarningLogged = false;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 const resolveTotalPurchased = (user) => {
   if (typeof user.totalPurchasedMs === "number" && Number.isFinite(user.totalPurchasedMs)) {
@@ -28,6 +29,8 @@ const signToken = (user) =>
     {
       sub: user._id.toString(),
       username: user.username,
+      email: user.email,
+      role: user.role,
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
       isDisabled: user.isDisabled,
@@ -56,6 +59,8 @@ const authMiddleware = async (req, res, next) => {
 const sanitizeUser = (user) => ({
   id: (user._id || user.id)?.toString(),
   username: user.username,
+  email: user.email,
+  role: user.role,
   membershipLevel: user.membershipLevel,
   membershipExpiresAt: user.membershipExpiresAt,
   isDisabled: !!user.isDisabled,
@@ -68,8 +73,7 @@ const requireAdminKey = (req, res, next) => {
   if (!ADMIN_API_KEY) {
     if (!adminKeyWarningLogged) {
       adminKeyWarningLogged = true;
-      console.warn("⚠️  ADMIN_API_KEY chưa được cấu hình. Các API quản trị sẽ không yêu cầu khóa.");
-    }
+      }
     return next();
   }
   const headerKey = req.headers["x-admin-key"];
@@ -79,18 +83,113 @@ const requireAdminKey = (req, res, next) => {
   return next();
 };
 
-router.post("/register", async (req, res) => {
+// Endpoint để tạo admin account (chỉ dùng trong development)
+router.post("/create-admin", async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+    const { username, password, email, adminKey } = req.body || {};
+    
+    // Kiểm tra admin key để bảo mật
+    if (adminKey !== "admin123456") {
+      return res.status(403).json({ message: "Không có quyền" });
+    }
+    
     if (!username || !password) {
       return res.status(400).json({ message: "Thiếu username/password" });
+    }
+    
+    // Kiểm tra user đã tồn tại chưa
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: "Username đã tồn tại" });
+    }
+    
+    if (email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email đã tồn tại" });
+      }
+    }
+    
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = new User({ 
+      username, 
+      passwordHash, 
+      email: email || undefined,
+      role: "admin"  // Set role admin ngay
+    });
+    
+    await user.save();
+    
+    res.status(201).json({ 
+      message: "Đã tạo admin account thành công",
+      user: {
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Endpoint để set user làm admin (chỉ dùng trong development)
+router.post("/make-admin", async (req, res) => {
+  try {
+    const { username, adminKey } = req.body || {};
+    
+    // Kiểm tra admin key để bảo mật
+    if (adminKey !== "admin123456") {
+      return res.status(403).json({ message: "Không có quyền" });
+    }
+    
+    if (!username) {
+      return res.status(400).json({ message: "Thiếu username" });
+    }
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    user.role = "admin";
+    await user.save();
+    
+    res.json({ 
+      message: `Đã set user ${username} làm admin`,
+      user: {
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+router.post("/register", async (req, res) => {
+  try {
+    const { username, password, email } = req.body || {};
+    if (!username || !password || !email) {
+      return res.status(400).json({ message: "Thiếu username/password/email" });
+    }
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ message: "Email không hợp lệ" });
     }
     const exists = await User.findOne({ username });
     if (exists) {
       return res.status(409).json({ message: "Tài khoản đã tồn tại" });
     }
+    const emailExists = await User.findOne({ email: normalizedEmail });
+    if (emailExists) {
+      return res.status(409).json({ message: "Email đã được sử dụng" });
+    }
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, passwordHash });
+    const user = await User.create({ username, passwordHash, email: normalizedEmail });
     return res.status(201).json({ message: "Đăng ký thành công", user: sanitizeUser(user) });
   } catch (e) {
     console.error(e);
@@ -191,17 +290,25 @@ router.get("/admin", requireAdminKey, async (_req, res) => {
 
 router.post("/admin", requireAdminKey, async (req, res) => {
   try {
-    const { username, password, plan = "free", expiresAt, isDisabled = false } = req.body || {};
-    if (!username || !password) {
-      return res.status(400).json({ message: "Thiếu username/password" });
+    const { username, password, email, plan = "free", expiresAt, isDisabled = false } = req.body || {};
+    if (!username || !password || !email) {
+      return res.status(400).json({ message: "Thiếu username/password/email" });
+    }
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ message: "Email không hợp lệ" });
     }
     const exists = await User.findOne({ username });
     if (exists) {
       return res.status(409).json({ message: "Tài khoản đã tồn tại" });
     }
+    const emailExists = await User.findOne({ email: normalizedEmail });
+    if (emailExists) {
+      return res.status(409).json({ message: "Email đã được sử dụng" });
+    }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const doc = new User({ username, passwordHash, isDisabled: !!isDisabled });
+    const doc = new User({ username, passwordHash, email: normalizedEmail, isDisabled: !!isDisabled });
 
     if (["day", "month", "year"].includes(plan)) {
       const { expiresAt, addedMs } = addDuration(plan, null);

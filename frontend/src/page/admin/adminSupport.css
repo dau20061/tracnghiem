@@ -1,0 +1,269 @@
+.admin-support {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+}
+
+.support-sidebar {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.support-sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.support-sidebar-head h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.support-thread-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.support-thread {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.support-thread.active {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.support-thread:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.support-thread-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.support-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.support-unread {
+  background: #ef4444;
+  color: #fff;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.support-thread-meta {
+  font-size: 13px;
+  color: #475569;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.support-last {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.support-thread-time {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.support-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+.support-error {
+  color: #b91c1c;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.support-chat-pane {
+  background: transparent;
+  min-height: 480px;
+  position: relative;
+}
+
+.support-placeholder {
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 40px;
+  color: #64748b;
+  text-align: center;
+}
+
+.support-chat-card {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.support-chat-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.support-chat-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.support-chat-plan {
+  font-size: 13px;
+  color: #475569;
+  margin-top: 4px;
+}
+
+.support-chat-body {
+  flex: 1;
+  padding: 18px 20px;
+  background: #f8fafc;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.support-status {
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.support-row {
+  display: flex;
+}
+
+.support-row.user {
+  justify-content: flex-start;
+}
+
+.support-row.admin {
+  justify-content: flex-end;
+}
+
+.support-bubble {
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+  display: grid;
+  gap: 6px;
+}
+
+.support-row.admin .support-bubble {
+  background: linear-gradient(135deg, #2563eb, #0ea5a0);
+  color: #fff;
+}
+
+.support-text {
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.support-time {
+  font-size: 11px;
+  color: rgba(100, 116, 139, 0.9);
+  justify-self: end;
+}
+
+.support-row.admin .support-time {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.support-chat-input {
+  border-top: 1px solid #e2e8f0;
+  padding: 14px 20px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.support-chat-input textarea {
+  flex: 1;
+  resize: none;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 10px 12px;
+  font-family: inherit;
+}
+
+.support-chat-input button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.support-chat-input button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-support .btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-support .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 960px) {
+  .admin-support {
+    grid-template-columns: 1fr;
+  }
+
+  .support-sidebar {
+    order: 2;
+  }
+
+  .support-chat-pane {
+    order: 1;
+  }
+}

@@ -4,6 +4,13 @@ const UserSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
     passwordHash: { type: String, required: true },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true,
+    },
     membershipLevel: {
       type: String,
       enum: ["free", "day", "month", "year"],

@@ -24,13 +24,24 @@ export default function QuizPage() {
   const [idx, setIdx] = useState(0);            // câu hiện tại (index)
   const [answers, setAnswers] = useState({});   // { [qId]: { answered: true, ... } }
   const [skipped, setSkipped] = useState(new Set()); // các câu đã bỏ qua
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now()); // Thời gian bắt đầu câu hiện tại
+  const [sessionId] = useState(() => `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`); // Unique session ID
 
   const [timeLeft, setTimeLeft] = useState(null);
   const timerRef = useRef(null);
   const completedRef = useRef(false);
 
   const markAnswered = (qid, info = {}) => {
-    setAnswers((prev) => ({ ...prev, [qid]: { ...(prev[qid] || {}), ...info, answered: true } }));
+    const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000); // tính thời gian bằng giây
+    setAnswers((prev) => ({ 
+      ...prev, 
+      [qid]: { 
+        ...(prev[qid] || {}), 
+        ...info, 
+        answered: true, 
+        timeSpent: (prev[qid]?.timeSpent || 0) + timeSpent 
+      } 
+    }));
     setSkipped((s) => {
       if (!s.has(qid)) return s;
       const n = new Set(s);
@@ -120,8 +131,13 @@ export default function QuizPage() {
         setIdx(0);
         setAnswers({});
         setSkipped(new Set());
+        setQuestionStartTime(Date.now()); // Reset thời gian khi tải đề mới
         setTimeLeft(mode === "testing" ? TEST_DURATION : null);
         completedRef.current = false;
+        
+        // Clear previous save flag để có thể lưu lại quiz result mới
+        const oldSessionKeys = Object.keys(sessionStorage).filter(key => key.startsWith(`quiz-saved-${quizId}-`));
+        oldSessionKeys.forEach(key => sessionStorage.removeItem(key));
       } catch (e) {
         setErr(e.message);
       } finally {
@@ -139,6 +155,7 @@ export default function QuizPage() {
     setIdx(0);
     setAnswers({});
     setSkipped(new Set());
+    setQuestionStartTime(Date.now()); // Reset thời gian
     if (timerRef.current) clearInterval(timerRef.current);
     setTimeLeft(mode === "testing" ? TEST_DURATION : null);
     completedRef.current = false;
@@ -195,7 +212,14 @@ export default function QuizPage() {
   const total = data.questions.length;
   const pct = Math.round(((idx + 1) / total) * 100);
 
-  const prev = () => setIdx((i) => Math.max(0, i - 1));
+  const prev = () => {
+    setIdx((i) => {
+      const newIdx = Math.max(0, i - 1);
+      setQuestionStartTime(Date.now()); // Reset thời gian khi chuyển câu
+      return newIdx;
+    });
+  };
+  
   const next = () => {
     const q = data.questions[idx];
     const answered = !!answers[q.id]?.answered;
@@ -203,14 +227,125 @@ export default function QuizPage() {
       // đánh dấu câu hiện tại là skipped
       setSkipped((s) => new Set([...s, q.id]));
     }
-    setIdx((i) => Math.min(total - 1, i + 1));
+    setIdx((i) => {
+      const newIdx = Math.min(total - 1, i + 1);
+      setQuestionStartTime(Date.now()); // Reset thời gian khi chuyển câu
+      return newIdx;
+    });
+  };
+
+  // Helper function để kiểm tra câu trả lời đúng/sai
+  const checkAnswer = (question, userAnswer) => {
+    if (!userAnswer || !userAnswer.answered) return false;
+    
+    switch (question.type) {
+      case 'single':
+      case 'image_single':
+      case 'image_grid':
+        // SingleChoice và ImageGridChoice gửi { choice: string, correct: boolean }
+        return userAnswer.choice === question.correct;
+      
+      case 'multi':
+        // MultiChoice gửi { choices: Array, correct: boolean }
+        if (!Array.isArray(question.correct) || !userAnswer.choices || !Array.isArray(userAnswer.choices)) {
+          return false;
+        }
+        const correctSet = new Set(question.correct);
+        const userSet = new Set(userAnswer.choices);
+        return correctSet.size === userSet.size && [...correctSet].every(x => userSet.has(x));
+      
+      case 'binary':
+        // BinaryTwoCols gửi { distribution: { left, right }, correct: boolean }
+        if (!userAnswer.distribution) return false;
+        return question.items.every(item => {
+          const isInLeft = userAnswer.distribution.left.includes(item.id);
+          const isInRight = userAnswer.distribution.right.includes(item.id);
+          const correctColumn = item.correctColumn;
+          
+          if (correctColumn === question.columns[0]) { // Cột đầu tiên (left)
+            return isInLeft;
+          } else { // Cột thứ hai (right)
+            return isInRight;
+          }
+        });
+      
+      case 'dragdrop':
+        // DragDropTargets gửi { mapping: object, correct: boolean }
+        if (!userAnswer.mapping || !question.correctMapping) return false;
+        const correctMapping = question.correctMapping;
+        return Object.keys(correctMapping).every(targetId => {
+          return userAnswer.mapping[targetId] === correctMapping[targetId];
+        });
+      
+      default:
+        return false;
+    }
   };
 
   const doneCount = Object.values(answers).filter((x) => x?.answered).length;
+  
+  // Tính số câu đúng
+  const correctCount = data ? data.questions.filter(q => {
+    const userAnswer = answers[q.id];
+    return userAnswer && userAnswer.answered && checkAnswer(q, userAnswer);
+  }).length : 0;
 
   function complete(autoByTime = false) {
     if (timerRef.current) clearInterval(timerRef.current);
-    const payload = { quizId, total, done: doneCount, ts: Date.now(), mode, autoByTime };
+    
+    // Chuẩn bị dữ liệu chi tiết để lưu
+    const detailedAnswers = data.questions.map((q, index) => {
+      const userAnswer = answers[q.id];
+      const isCorrect = userAnswer ? checkAnswer(q, userAnswer) : false;
+      
+      // Lấy answer data tùy theo type câu hỏi
+      let answerData = null;
+      if (userAnswer) {
+        switch (q.type) {
+          case 'single':
+          case 'image_single':
+          case 'image_grid':
+            answerData = userAnswer.choice;
+            break;
+          case 'multi':
+            answerData = userAnswer.choices;
+            break;
+          case 'binary':
+            answerData = userAnswer.distribution;
+            break;
+          case 'dragdrop':
+            answerData = userAnswer.mapping;
+            break;
+          default:
+            answerData = userAnswer.selected || userAnswer.value;
+        }
+      }
+      
+      return {
+        questionId: q.id,
+        userAnswer: answerData,
+        isCorrect: isCorrect,
+        timeSpent: userAnswer?.timeSpent || 0
+      };
+    });
+
+    const timeSpentTotal = mode === "testing" ? (TEST_DURATION - (timeLeft || 0)) : 0;
+    
+    const payload = { 
+      quizId, 
+      quizTitle: data.title,
+      total, 
+      done: correctCount, // Thay đổi: dùng số câu đúng thay vì số câu đã làm
+      answered: doneCount, // Thêm: số câu đã trả lời
+      answers: detailedAnswers,
+      totalTimeSpent: timeSpentTotal,
+      startedAt: new Date().toISOString(),
+      sessionId: sessionId, // Thêm sessionId để track unique session
+      ts: Date.now(), 
+      mode, 
+      autoByTime 
+    };
+    
     sessionStorage.setItem("quizResult", JSON.stringify(payload));
     navigate(`/quiz/${quizId}/complete`, { state: payload });
   }
@@ -231,7 +366,10 @@ export default function QuizPage() {
     return "pending";                                   
   };
 
-  const jumpTo = (i) => setIdx(i);
+  const jumpTo = (i) => {
+    setIdx(i);
+    setQuestionStartTime(Date.now()); // Reset thời gian khi jump
+  };
 
   return (
     <div className="quiz-layout">

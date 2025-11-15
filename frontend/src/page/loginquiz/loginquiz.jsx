@@ -3,8 +3,11 @@ import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./login.css";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,15 +48,20 @@ export default function LoginPage() {
   const handleRegister = async () => {
     if (pwd.length < 6) throw new Error("Mật khẩu tối thiểu 6 ký tự");
     if (pwd !== confirm) throw new Error("Mật khẩu nhập lại không khớp");
+    if (!EMAIL_REGEX.test(email.trim())) throw new Error("Email không hợp lệ");
     const res = await fetch("http://localhost:4000/api/users/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password: pwd }),
+      body: JSON.stringify({ username, password: pwd, email: email.trim() }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Đăng ký thất bại");
     setNotice("Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.");
     setMode("login");
+    setUsername("");
+    setConfirm("");
+    setPwd("");
+    setEmail("");
   };
 
   const onSubmit = async (e) => {
@@ -118,6 +126,17 @@ export default function LoginPage() {
 
           {mode === "register" && (
             <>
+              <label className="label" htmlFor="email">Gmail</label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+
               <label className="label" htmlFor="confirm">Nhập lại mật khẩu</label>
               <input
                 id="confirm"

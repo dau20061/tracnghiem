@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./adminUsers.css";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -15,7 +18,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
-  const [createForm, setCreateForm] = useState({ username: "", password: "", plan: "free" });
+  const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", plan: "free" });
+  const navigate = useNavigate();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -64,12 +68,16 @@ export default function AdminUsers() {
 
   const createUser = async (e) => {
     e.preventDefault();
-    if (!createForm.username || !createForm.password) {
-      setErr("Vui lòng nhập username và password");
+    if (!createForm.username || !createForm.password || !createForm.email) {
+      setErr("Vui lòng nhập username, email và password");
       return;
     }
     if (createForm.password.length < 6) {
       setErr("Mật khẩu tối thiểu 6 ký tự");
+      return;
+    }
+    if (!EMAIL_REGEX.test(createForm.email.trim())) {
+      setErr("Email không hợp lệ");
       return;
     }
     await adminRequest(
@@ -78,13 +86,14 @@ export default function AdminUsers() {
         method: "POST",
         body: JSON.stringify({
           username: createForm.username,
+          email: createForm.email.trim(),
           password: createForm.password,
           plan: createForm.plan,
         }),
       },
       "Đã tạo tài khoản"
     );
-    setCreateForm({ username: "", password: "", plan: "free" });
+    setCreateForm({ username: "", email: "", password: "", plan: "free" });
   };
 
   const extendPlan = (id, plan) => adminRequest(
@@ -182,6 +191,13 @@ export default function AdminUsers() {
             required
           />
           <input
+            placeholder="gmail"
+            type="email"
+            value={createForm.email}
+            onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+            required
+          />
+          <input
             placeholder="password (>=6 ký tự)"
             type="password"
             value={createForm.password}
@@ -229,6 +245,7 @@ export default function AdminUsers() {
                     <div className="avatar">{user.username?.slice(0,1)?.toUpperCase()}</div>
                     <div>
                       <div className="username">{user.username}</div>
+                      {user.email && <div className="meta">{user.email}</div>}
                       <div className="meta">id:{user.id}</div>
                     </div>
                   </div>
@@ -238,6 +255,7 @@ export default function AdminUsers() {
                 <td>{user.isDisabled ? "Đã vô hiệu hóa" : "Đang hoạt động"}</td>
                 <td>
                   <div className="actions">
+                    <button type="button" onClick={() => navigate(`/admin/users/${user.id}/quiz-history`)}>📊 Lịch sử bài làm</button>
                     <button type="button" onClick={() => extendPlan(user.id, "day")}>+1 ngày</button>
                     <button type="button" onClick={() => extendPlan(user.id, "month")}>+1 tháng</button>
                     <button type="button" onClick={() => extendPlan(user.id, "year")}>+1 năm</button>

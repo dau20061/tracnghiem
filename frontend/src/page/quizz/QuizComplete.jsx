@@ -1,5 +1,5 @@
 // src/page/quiz/QuizComplete.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./quiz.css";
 
@@ -7,6 +7,9 @@ export default function QuizComplete() {
   const { quizId } = useParams();
   const nav = useNavigate();
   const loc = useLocation();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveAttempted, setSaveAttempted] = useState(false); // Thêm flag này
 
   // Ưu tiên lấy từ state khi điều hướng, fallback sessionStorage nếu refresh
   const fromState = loc.state;
@@ -18,21 +21,191 @@ export default function QuizComplete() {
   }, []);
 
   const total = fromState?.total ?? fromStore?.total ?? 0;
-  const done  = fromState?.done  ?? fromStore?.done  ?? 0;
+  const done  = fromState?.done  ?? fromStore?.done  ?? 0; // Số câu đúng
+  const answered = fromState?.answered ?? fromStore?.answered ?? done; // Số câu đã trả lời
+  const answers = fromState?.answers ?? fromStore?.answers ?? [];
+  const quizTitle = fromState?.quizTitle ?? fromStore?.quizTitle ?? `Quiz ${quizId}`;
+  const startedAt = fromState?.startedAt ?? fromStore?.startedAt;
+  const totalTimeSpent = fromState?.totalTimeSpent ?? fromStore?.totalTimeSpent ?? 0;
+  const sessionId = fromState?.sessionId ?? fromStore?.sessionId;
+
+  // Tính toán điểm số dựa trên số câu đúng
+  const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
+  const grade = percentage >= 90 ? 'A' : 
+                percentage >= 80 ? 'B' : 
+                percentage >= 70 ? 'C' : 
+                percentage >= 60 ? 'D' : 'F';
+
+  // Lưu kết quả vào database
+  const saveResult = async () => {
+    const token = localStorage.getItem('token');
+    
+    // Multiple checks to prevent duplicate saves
+    if (!token || saving || saved || saveAttempted) {
+      console.log('🚫 Save blocked:', { token: !!token, saving, saved, saveAttempted });
+      return;
+    }
+
+    // Kiểm tra đã save chưa từ sessionStorage với sessionId
+    const sessionKey = `quiz-saved-${quizId}-${sessionId || 'default'}`;
+    const alreadySaved = sessionStorage.getItem(sessionKey);
+    if (alreadySaved) {
+      console.log('🚫 Already saved in session');
+      setSaved(true);
+      return;
+    }
+
+    console.log('💾 Starting save process...');
+    setSaveAttempted(true); // Set ngay khi bắt đầu attempt
+    setSaving(true);
+    
+    try {
+      // Format answers cho backend
+      const formattedAnswers = answers.map(answer => ({
+        questionId: answer.questionId || answer.id,
+        userAnswer: answer.userAnswer || answer.answer,
+        isCorrect: answer.isCorrect || false,
+        timeSpent: answer.timeSpent || 0
+      }));
+
+      const payload = {
+        quizId: quizId,
+        answers: formattedAnswers,
+        totalTimeSpent: totalTimeSpent,
+        startedAt: startedAt || new Date().toISOString(),
+        sessionId: sessionId // Thêm sessionId vào payload
+      };
+
+      const response = await fetch('http://localhost:4000/api/quiz-results/submit', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        setSaved(true);
+        sessionStorage.setItem(sessionKey, 'true');
+        console.log('✅ Quiz result saved successfully');
+      } else {
+        console.error('❌ Failed to save quiz result:', response.status);
+        setSaveAttempted(false); // Reset nếu failed để có thể retry
+      }
+    } catch (error) {
+      console.error('❌ Error saving quiz result:', error);
+      setSaveAttempted(false); // Reset nếu error để có thể retry
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Tự động lưu kết quả khi component mount
+  useEffect(() => {
+    if (total > 0 && answers.length > 0 && !saved && !saving && !saveAttempted) {
+      console.log('🔄 Auto-save triggered:', { total, answersLength: answers.length, saved, saving, saveAttempted });
+      // Delay một chút để đảm bảo component đã render xong
+      const timer = setTimeout(() => {
+        saveResult();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [total, answers.length, saved, saving, saveAttempted]);
+
+  const getGradeColor = (grade) => {
+    switch (grade) {
+      case 'A': return '#10b981'; // green
+      case 'B': return '#3b82f6'; // blue
+      case 'C': return '#f59e0b'; // yellow
+      case 'D': return '#ef4444'; // red
+      case 'F': return '#6b7280'; // gray
+      default: return '#6b7280';
+    }
+  };
 
   return (
     <div className="quiz-wrap">
       <div className="card" style={{ textAlign: "center", padding: 28 }}>
         <h1 style={{ marginTop: 0 }}>🎉 Hoàn thành bài kiểm tra</h1>
         <p style={{ color: "var(--muted)" }}>Mã bài: <strong>{quizId}</strong></p>
+        
+        {/* Kết quả chi tiết */}
+        <div style={{ 
+          background: '#f8fafc', 
+          borderRadius: '12px', 
+          padding: '20px', 
+          margin: '20px 0',
+          border: '1px solid #e2e8f0'
+        }}>
+          <div style={{ fontSize: 18, marginBottom: 15 }}>
+            Bạn trả lời đúng <strong style={{ color: '#10b981' }}>{done}</strong>/<strong>{total}</strong> câu
+          </div>
+          
+          {answered !== done && (
+            <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 10 }}>
+              Đã trả lời: <strong>{answered}</strong>/{total} câu • 
+              Bỏ qua: <strong>{total - answered}</strong> câu
+            </div>
+          )}
+          
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '20px',
+            marginBottom: 15
+          }}>
+            <div style={{ fontSize: 32, fontWeight: 'bold', color: getGradeColor(grade) }}>
+              {percentage}%
+            </div>
+            <div style={{ 
+              width: 50, 
+              height: 50, 
+              borderRadius: '50%', 
+              background: getGradeColor(grade),
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 'bold'
+            }}>
+              {grade}
+            </div>
+          </div>
 
-        <div style={{ fontSize: 18, marginTop: 10 }}>
-          Bạn đã hoàn thành <strong>{done}</strong>/<strong>{total}</strong> câu.
+          {totalTimeSpent > 0 && (
+            <div style={{ color: '#6b7280', fontSize: 14 }}>
+              Thời gian: {Math.floor(totalTimeSpent / 60)}:{(totalTimeSpent % 60).toString().padStart(2, '0')}
+            </div>
+          )}
         </div>
 
-        <div className="actions" style={{ justifyContent: "center", marginTop: 16 }}>
+        {/* Trạng thái lưu */}
+        {saving && (
+          <div style={{ color: '#6b7280', fontSize: 14, marginBottom: 15 }}>
+            💾 Đang lưu kết quả...
+          </div>
+        )}
+        
+        {saved && (
+          <div style={{ color: '#10b981', fontSize: 14, marginBottom: 15 }}>
+            ✅ Đã lưu kết quả vào lịch sử
+          </div>
+        )}
+
+        <div className="actions" style={{ justifyContent: "center", marginTop: 20 }}>
           <button className="btn" onClick={() => nav(`/quiz/${quizId}`)}>
             Làm lại bài
+          </button>
+          <button 
+            className="btn" 
+            onClick={() => nav("/quiz-history")}
+            style={{ background: '#667eea', color: 'white' }}
+          >
+            📊 Xem lịch sử
           </button>
           <button className="btn btn-primary" onClick={() => nav("/practice")} style={{ minWidth: 160 }}>
             ← Về IC3Dashboard

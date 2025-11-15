@@ -36,14 +36,17 @@ export default function UpgradePage() {
   const upgrade = async (plan) => {
     const token = localStorage.getItem("token");
     if (!token) {
-  navigate("/login", { state: { from: "/upgrade" } });
+      navigate("/login", { state: { from: "/upgrade" } });
       return;
     }
     setErr("");
     setDone("");
     setLoading(plan);
     try {
-      const res = await fetch("http://localhost:4000/api/users/upgrade", {
+      localStorage.removeItem("zalopayAppTransId");
+      localStorage.removeItem("zalopayQrCode");
+      localStorage.removeItem("zalopayOrderUrl");
+      const res = await fetch("http://localhost:4000/api/payments/zalopay/order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,15 +59,31 @@ export default function UpgradePage() {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.dispatchEvent(new Event("auth-changed"));
-  navigate("/login", { state: { from: "/upgrade" } });
+        navigate("/login", { state: { from: "/upgrade" } });
         return;
       }
-      if (!res.ok) throw new Error(data?.message || "Nâng cấp thất bại");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-  window.dispatchEvent(new Event("auth-changed"));
-      setDone("Nâng cấp thành công! Bạn đã mở khóa toàn bộ bài kiểm tra.");
-      setTimeout(() => navigate("/courses"), 1200);
+      if (!res.ok) {
+        throw new Error(data?.message || "Không tạo được thanh toán");
+      }
+      if (!data?.orderUrl) {
+        throw new Error("Thiếu đường dẫn thanh toán ZaloPay");
+      }
+      localStorage.setItem("zalopayAppTransId", data.appTransId);
+      localStorage.setItem("zalopayPlan", plan); // Store plan for redirect
+      if (data.qrCode) {
+        localStorage.setItem("zalopayQrCode", data.qrCode);
+      }
+      if (data.orderUrl) {
+        localStorage.setItem("zalopayOrderUrl", data.orderUrl);
+      }
+      
+      // Mở ZaloPay trong tab mới
+      window.open(data.orderUrl, '_blank');
+      
+      // Chuyển đến trang chờ
+      navigate(`/payment/waiting?appTransId=${encodeURIComponent(data.appTransId)}&plan=${encodeURIComponent(plan)}`);
+      
+      setDone("Đang chuyển đến trang chờ...");
     } catch (e) {
       setErr(e.message);
     } finally {

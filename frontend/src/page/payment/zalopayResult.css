@@ -1,0 +1,99 @@
+.zp-result {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f1f5f9, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  color: #0f172a;
+}
+
+.zp-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
+  padding: 32px 28px;
+  text-align: center;
+  display: grid;
+  gap: 18px;
+}
+
+.zp-status {
+  font-size: 42px;
+}
+
+.zp-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.zp-message {
+  margin: 0;
+  color: #334155;
+  font-size: 16px;
+}
+
+.zp-error {
+  margin: -6px 0 0;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.zp-qr {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 18px;
+  border: 1px dashed #94a3b8;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.zp-qr-img {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 14px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.zp-note {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.zp-details {
+  text-align: left;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.zp-details span {
+  color: #64748b;
+}
+
+.zp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.zp-actions .btn {
+  min-width: 160px;
+}

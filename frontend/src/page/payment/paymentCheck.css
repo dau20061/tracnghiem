@@ -1,0 +1,79 @@
+.payment-check {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f1f5f9, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  color: #0f172a;
+}
+
+.payment-card {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
+  padding: 32px 28px;
+  text-align: center;
+  display: grid;
+  gap: 18px;
+}
+
+.payment-status {
+  font-size: 42px;
+}
+
+.payment-card h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.payment-message {
+  margin: 0;
+  color: #334155;
+  font-size: 16px;
+}
+
+.payment-info {
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
+  padding: 16px;
+  font-size: 14px;
+}
+
+.payment-info p {
+  margin: 0;
+}
+
+.payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.payment-actions .btn {
+  min-width: 140px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+}
+
+.payment-actions .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border: none;
+  color: #fff;
+}
+
+.payment-actions .btn:hover {
+  transform: translateY(-1px);
+}
