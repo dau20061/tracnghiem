@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';import { API_URL } from '../../config/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '../../config/api';
 
 import { useNavigate } from 'react-router-dom';
 import './AdminRevenueStats.css';
@@ -37,7 +38,7 @@ const AdminRevenueStats = () => {
       setLoading(true);
       setError('');
       
-      const response = await fetch(`${API_URL}/api/revenue-stats/overview', {
+      const response = await fetch(`${API_URL}/api/revenue-stats/overview`, {
         headers: {
           'Content-Type': 'application/json'
           // Add admin key if needed

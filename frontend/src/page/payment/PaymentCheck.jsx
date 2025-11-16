@@ -52,7 +52,7 @@ export default function PaymentCheck() {
           localStorage.removeItem("zalopayAppTransId");
           
           // Refresh user data
-          const userRes = await fetch(`${API_URL}/api/users/me", {
+          const userRes = await fetch(`${API_URL}/api/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (userRes.ok) {

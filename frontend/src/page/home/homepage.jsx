@@ -62,7 +62,7 @@ export default function HomePage() {
       // Refresh user data
       const token = localStorage.getItem("token");
       if (token) {
-        fetch(`${API_URL}/api/users/me", {
+        fetch(`${API_URL}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then(res => res.ok ? res.json() : null)

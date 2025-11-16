@@ -38,7 +38,7 @@ export default function PaymentSuccess() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const response = await fetch(`${API_URL}/api/users/me", {
+          const response = await fetch(`${API_URL}/api/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (response.ok) {

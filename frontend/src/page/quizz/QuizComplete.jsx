@@ -1,5 +1,6 @@
 // src/page/quiz/QuizComplete.jsx
-import React, { useMemo, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+import React, { useMemo, useEffect, useState } from "react";
+import { API_URL } from '../../config/api';
 
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./quiz.css";
@@ -77,7 +78,7 @@ export default function QuizComplete() {
         sessionId: sessionId // Thêm sessionId vào payload
       };
 
-      const response = await fetch(`${API_URL}/api/quiz-results/submit', {
+      const response = await fetch(`${API_URL}/api/quiz-results/submit`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

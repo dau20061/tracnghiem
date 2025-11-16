@@ -72,7 +72,7 @@ export default function ZaloPayResult() {
       try {
         const token = tokenRef.current;
         if (!token) return;
-        const res = await fetch(`${API_URL}/api/users/me", {
+        const res = await fetch(`${API_URL}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;

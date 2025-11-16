@@ -60,7 +60,7 @@ export default function PaymentWaiting() {
             
             // Refresh user data
             try {
-              const userResponse = await fetch(`${API_URL}/api/users/me", {
+              const userResponse = await fetch(`${API_URL}/api/users/me`, {
                 headers: { Authorization: `Bearer ${token}` },
               });
               if (userResponse.ok) {

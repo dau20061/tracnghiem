@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+import React, { useCallback, useEffect, useState } from "react";
+import { API_URL } from '../../config/api';
 
 import { useNavigate } from "react-router-dom";
 import "./adminUsers.css";
@@ -26,8 +27,8 @@ export default function AdminUsers() {
     setLoading(true);
     setErr("");
     try {
-      const res = await fetch(`${API_URL}/api/users/admin");
-      const data = await res.json();
+      const res = await fetch(`${API_URL}/api/users/admin`);
+      const json = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được danh sách user");
       setUsers(Array.isArray(data.users) ? data.users : []);
     } catch (e) {
@@ -82,7 +83,7 @@ export default function AdminUsers() {
       return;
     }
     await adminRequest(
-      `${API_URL}/api/users/admin",
+      `${API_URL}/api/users/admin`,
       {
         method: "POST",
         body: JSON.stringify({

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+import React, { useCallback, useEffect, useState } from "react";
+import { API_URL } from '../../config/api';
 
 import "./adminSupport.css";
 
@@ -42,10 +43,10 @@ export default function AdminSupport() {
   const loadThreads = useCallback(async () => {
     setLoadingThreads(true);
     try {
-      const res = await fetch(`${API_URL}/api/chat/admin/threads");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Không tải được danh sách hội thoại");
-      setThreads(Array.isArray(data.threads) ? data.threads : []);
+      const res = await fetch(`${API_URL}/api/chat/admin/threads`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || "Không tải được danh sách hội thoại");
+      setThreads(Array.isArray(json.threads) ? json.threads : []);
       setError("");
     } catch (e) {
       setError(e.message);
