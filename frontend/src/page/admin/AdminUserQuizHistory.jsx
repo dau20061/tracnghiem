@@ -254,32 +254,155 @@ const AdminUserQuizHistory = () => {
     }
   };
 
-  const renderAnswerSnippet = (value) => {
-    if (value === null || typeof value === 'undefined' || value === '') {
-      return <span className="muted">Không có dữ liệu</span>;
-    }
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  const getOptionLabel = (question, optionId) => {
+    if (!question || !optionId) return optionId || '—';
+    const found = question.options?.find((opt) => opt.id === optionId);
+    return found ? `${found.id}. ${found.text}` : optionId;
+  };
+
+  const formatBinaryColumn = (question, ids = []) => {
+    if (!Array.isArray(ids) || ids.length === 0) return 'Không có';
+    return ids
+      .map((id) => question.items?.find((item) => item.id === id)?.text || id)
+      .join(', ');
+  };
+
+  const formatDragOption = (question, optionId) => {
+    if (!question || !optionId) return 'Chưa chọn';
+    const found = question.bank?.find((item) => item.id === optionId);
+    return found ? found.text : optionId;
+  };
+
+  const renderAnswerSnippet = (value, question = null) => {
+    // Nếu không có metadata câu hỏi, xử lý generic
+    if (!question) {
+      if (value === null || typeof value === 'undefined' || value === '') {
+        return <span className="muted">Không có dữ liệu</span>;
+      }
+      // Array generic
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          return <span className="muted">Không có dữ liệu</span>;
+        }
+        return (
+          <ul className="answer-list">
+            {value.map((item, idx) => (
+              <li key={idx}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+            ))}
+          </ul>
+        );
+      }
+      // Object generic
+      if (typeof value === 'object') {
+        return (
+          <div className="answer-object">
+            {Object.entries(value).map(([key, val]) => (
+              <div key={key} className="object-entry">
+                <strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Primitive
       return <span className="answer-snippet">{String(value)}</span>;
     }
-    return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+
+    // Có metadata câu hỏi
+    switch (question.type) {
+      case 'single':
+      case 'image_single':
+      case 'image_grid':
+        if (!value) return <span className="muted">Chưa trả lời</span>;
+        return <span className="answer-snippet">{getOptionLabel(question, value)}</span>;
+
+      case 'multi':
+        if (!Array.isArray(value) || value.length === 0) {
+          return <span className="muted">Chưa trả lời</span>;
+        }
+        return (
+          <ul className="answer-list">
+            {value.map((id) => (
+              <li key={id}>{getOptionLabel(question, id)}</li>
+            ))}
+          </ul>
+        );
+
+      case 'binary':
+        if (!value) return <span className="muted">Chưa trả lời</span>;
+        const binaryLeft = value.left || [];
+        const binaryRight = value.right || [];
+        return (
+          <div className="binary-answer-block">
+            <div>
+              <strong>{question.columns?.[0] || 'Cột 1'}:</strong>{' '}
+              {Array.isArray(binaryLeft) && binaryLeft.length > 0
+                ? formatBinaryColumn(question, binaryLeft)
+                : <span className="muted">Không có</span>}
+            </div>
+            <div>
+              <strong>{question.columns?.[1] || 'Cột 2'}:</strong>{' '}
+              {Array.isArray(binaryRight) && binaryRight.length > 0
+                ? formatBinaryColumn(question, binaryRight)
+                : <span className="muted">Không có</span>}
+            </div>
+          </div>
+        );
+
+      case 'dragdrop':
+        if (!value || !question.targets?.length) {
+          return <span className="muted">Chưa trả lời</span>;
+        }
+        return (
+          <div className="dragdrop-answer-block">
+            {question.targets.map((target) => (
+              <div key={target.id} className="drag-answer-item">
+                <strong>{target.label}:</strong>{' '}
+                {value[target.id]
+                  ? formatDragOption(question, value[target.id])
+                  : <span className="muted">Chưa chọn</span>}
+              </div>
+            ))}
+          </div>
+        );
+
+      default:
+        if (value === null || typeof value === 'undefined' || value === '') {
+          return <span className="muted">Không có dữ liệu</span>;
+        }
+        if (Array.isArray(value)) {
+          if (value.length === 0) {
+            return <span className="muted">Không có dữ liệu</span>;
+          }
+          return (
+            <ul className="answer-list">
+              {value.map((item, idx) => (
+                <li key={idx}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (typeof value === 'object') {
+          return (
+            <div className="answer-object">
+              {Object.entries(value).map(([key, val]) => (
+                <div key={key} className="object-entry">
+                  <strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return <span className="answer-snippet">{String(value)}</span>;
+    }
   };
 
   const getCorrectReference = (question) => {
     if (!question) return null;
     if (question.type === 'binary') {
-      const result = {};
-      if (Array.isArray(question.columns)) {
-        question.columns.forEach((column) => {
-          result[column] = question.items?.filter((item) => item.correctColumn === column).map((item) => item.text) || [];
-        });
-        return result;
-      }
-      return question.items?.reduce((acc, item) => {
-        const key = item.correctColumn || 'Đúng';
-        acc[key] = acc[key] || [];
-        acc[key].push(item.text);
-        return acc;
-      }, {}) || null;
+      const leftIds = question.items?.filter((item) => item.correctColumn === question.columns?.[0]).map((item) => item.id) || [];
+      const rightIds = question.items?.filter((item) => item.correctColumn === question.columns?.[1]).map((item) => item.id) || [];
+      return { left: leftIds, right: rightIds };
     }
     if (question.type === 'dragdrop') {
       return question.correctMapping || null;
@@ -565,11 +688,11 @@ const AdminUserQuizHistory = () => {
                         <div className="admin-answer-columns">
                           <div>
                             <div className="answer-title">Trả lời của user</div>
-                            {renderAnswerSnippet(answer.userAnswer)}
+                            {renderAnswerSnippet(answer.userAnswer, answer.question)}
                           </div>
                           <div>
                             <div className="answer-title">Đáp án đúng</div>
-                            {renderAnswerSnippet(getCorrectReference(answer.question))}
+                            {renderAnswerSnippet(getCorrectReference(answer.question), answer.question)}
                           </div>
                         </div>
                         {editingEnabled && editable && (

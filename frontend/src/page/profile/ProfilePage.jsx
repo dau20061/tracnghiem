@@ -138,8 +138,19 @@ export default function ProfilePage() {
   return (
     <div className="profile-page">
       <div className="profile-card">
-        <h1>Hồ sơ tài khoản</h1>
-        <p className="profile-subtitle">Quản lý thông tin và đổi mật khẩu bảo mật bằng OTP.</p>
+        <div className="profile-header">
+          <div>
+            <h1>Hồ sơ tài khoản</h1>
+            <p className="profile-subtitle">Quản lý thông tin và đổi mật khẩu bảo mật bằng OTP.</p>
+          </div>
+          <button 
+            className="home-btn"
+            onClick={() => navigate('/')}
+            title="Về trang chủ"
+          >
+            🏠 Trang chủ
+          </button>
+        </div>
 
         <div className="profile-info-grid">
           <div>

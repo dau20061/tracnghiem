@@ -37,14 +37,38 @@ const QuizHistory = () => {
   };
 
   const renderAnswerValue = (question, value, emptyLabel = '—') => {
+    // Trường hợp không có question metadata
     if (!question) {
-      if (value === null || typeof value === 'undefined') {
+      if (value === null || typeof value === 'undefined' || value === '') {
         return <span className="muted">{emptyLabel}</span>;
       }
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        return <span>{String(value)}</span>;
+      // Nếu là array, hiển thị dạng danh sách
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          return <span className="muted">{emptyLabel}</span>;
+        }
+        return (
+          <ul className="answer-list">
+            {value.map((item, idx) => (
+              <li key={idx}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+            ))}
+          </ul>
+        );
       }
-      return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+      // Nếu là object, hiển thị các key-value
+      if (typeof value === 'object') {
+        return (
+          <div className="answer-object">
+            {Object.entries(value).map(([key, val]) => (
+              <div key={key} className="object-entry">
+                <strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Các kiểu dữ liệu đơn giản
+      return <span>{String(value)}</span>;
     }
 
     switch (question.type) {
@@ -66,10 +90,22 @@ const QuizHistory = () => {
         );
       case 'binary':
         if (!value) return <span className="muted">{emptyLabel}</span>;
+        const binaryLeft = value.left || [];
+        const binaryRight = value.right || [];
         return (
           <div className="binary-answer-block">
-            <div><strong>{question.columns?.[0] || 'Cột 1'}:</strong> {formatBinaryColumn(question, value.left)}</div>
-            <div><strong>{question.columns?.[1] || 'Cột 2'}:</strong> {formatBinaryColumn(question, value.right)}</div>
+            <div>
+              <strong>{question.columns?.[0] || 'Cột 1'}:</strong>{' '}
+              {Array.isArray(binaryLeft) && binaryLeft.length > 0
+                ? formatBinaryColumn(question, binaryLeft)
+                : <span className="muted">Không có</span>}
+            </div>
+            <div>
+              <strong>{question.columns?.[1] || 'Cột 2'}:</strong>{' '}
+              {Array.isArray(binaryRight) && binaryRight.length > 0
+                ? formatBinaryColumn(question, binaryRight)
+                : <span className="muted">Không có</span>}
+            </div>
           </div>
         );
       case 'dragdrop':
@@ -79,8 +115,11 @@ const QuizHistory = () => {
         return (
           <div className="dragdrop-answer-block">
             {question.targets.map((target) => (
-              <div key={target.id}>
-                <strong>{target.label}:</strong> {formatDragOption(question, value[target.id])}
+              <div key={target.id} className="drag-answer-item">
+                <strong>{target.label}:</strong>{' '}
+                {value[target.id] 
+                  ? formatDragOption(question, value[target.id])
+                  : <span className="muted">Chưa chọn</span>}
               </div>
             ))}
           </div>
@@ -89,10 +128,33 @@ const QuizHistory = () => {
         if (value === null || typeof value === 'undefined' || value === '') {
           return <span className="muted">{emptyLabel}</span>;
         }
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-          return <span>{String(value)}</span>;
+        // Array fallback
+        if (Array.isArray(value)) {
+          if (value.length === 0) {
+            return <span className="muted">{emptyLabel}</span>;
+          }
+          return (
+            <ul className="answer-list">
+              {value.map((item, idx) => (
+                <li key={idx}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+              ))}
+            </ul>
+          );
         }
-        return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+        // Object fallback
+        if (typeof value === 'object') {
+          return (
+            <div className="answer-object">
+              {Object.entries(value).map(([key, val]) => (
+                <div key={key} className="object-entry">
+                  <strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        // Primitive values
+        return <span>{String(value)}</span>;
     }
   };
 
