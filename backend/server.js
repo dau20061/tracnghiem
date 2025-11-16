@@ -13,6 +13,7 @@ import paymentsRoutes from "./routes/payments.js";
 import quizResultsRoutes from "./routes/quiz-results.js";
 import revenueStatsRoutes from "./routes/revenue-stats.js";
 import emailService from "./services/emailService.js";
+import testEmailRoutes from "./routes/test-email.js";
 
 
 
@@ -31,6 +32,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/quiz-results", quizResultsRoutes);
 app.use("/api/revenue-stats", revenueStatsRoutes);
+app.use("/api/test-email", testEmailRoutes);
 
 app.use("/api/images", imagesRoutes);
 app.use("/api/quizzes", quizzesRoutes);

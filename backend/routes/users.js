@@ -217,7 +217,7 @@ router.post("/register", async (req, res) => {
     }
     
     return res.status(201).json({ 
-      message: "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.", 
+      message: "Đã tạo tài khoản. Vui lòng kiểm tra email và xác thực mã OTP để hoàn tất đăng ký.", 
       user: { ...sanitizeUser(user), needsVerification: true }
     });
   } catch (e) {
@@ -273,7 +273,7 @@ router.post("/verify-otp", async (req, res) => {
     
     const token = signToken(user);
     return res.json({ 
-      message: "Xác thực thành công!", 
+      message: "Đăng ký thành công! Tài khoản đã được kích hoạt.", 
       token, 
       user: sanitizeUser(user) 
     });

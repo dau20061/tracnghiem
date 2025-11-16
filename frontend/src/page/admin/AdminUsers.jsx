@@ -21,6 +21,7 @@ export default function AdminUsers() {
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
   const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", plan: "free" });
+  const [filterStatus, setFilterStatus] = useState("all"); // all, verified, pending
   const navigate = useNavigate();
 
   const fetchUsers = useCallback(async () => {
@@ -168,6 +169,15 @@ export default function AdminUsers() {
           <p>Theo dõi gói đã đăng ký, gia hạn, đổi mật khẩu hoặc vô hiệu hóa tài khoản.</p>
         </div>
         <div className="admin-users-actions">
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{ marginRight: '10px', padding: '8px' }}
+          >
+            <option value="all">Tất cả tài khoản</option>
+            <option value="verified">Chỉ đã xác thực</option>
+            <option value="pending">Chỉ chưa xác thực</option>
+          </select>
           <button
             className="btn"
             type="button"
@@ -223,6 +233,25 @@ export default function AdminUsers() {
       {err && <div className="notice error">{err}</div>}
       {notice && <div className="notice success">{notice}</div>}
 
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        marginBottom: '15px',
+        padding: '15px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px'
+      }}>
+        <div>
+          <strong>Tổng tài khoản:</strong> {users.length}
+        </div>
+        <div style={{ color: 'green' }}>
+          <strong>Đã xác thực:</strong> {users.filter(u => u.isVerified).length}
+        </div>
+        <div style={{ color: 'orange' }}>
+          <strong>Chờ xác thực:</strong> {users.filter(u => !u.isVerified).length}
+        </div>
+      </div>
+
       <section className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -241,7 +270,13 @@ export default function AdminUsers() {
                 <td colSpan={7} className="empty">Chưa có dữ liệu. Nhập khóa và bấm tải lại.</td>
               </tr>
             )}
-            {users.map((user) => (
+            {users
+              .filter((user) => {
+                if (filterStatus === "verified") return user.isVerified;
+                if (filterStatus === "pending") return !user.isVerified;
+                return true; // all
+              })
+              .map((user) => (
               <tr key={user.id} className={user.isDisabled ? "disabled" : ""}>
                 <td>
                   <div className="user-cell">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { API_URL } from "../../config/api";
 import "./verifyOTP.css";
 
 export default function VerifyOTP() {
@@ -39,7 +40,7 @@ export default function VerifyOTP() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4000/api/users/verify-otp", {
+      const res = await fetch(`${API_URL}/api/users/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, otp }),
@@ -56,10 +57,10 @@ export default function VerifyOTP() {
       localStorage.setItem("user", JSON.stringify(data.user));
       window.dispatchEvent(new Event("auth-changed"));
 
-      setSuccess("Xác thực thành công! Đang chuyển hướng...");
+      setSuccess("🎉 Đăng ký thành công! Tài khoản đã được kích hoạt. Đang chuyển hướng...");
       setTimeout(() => {
         navigate("/", { replace: true });
-      }, 1500);
+      }, 2000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -73,7 +74,7 @@ export default function VerifyOTP() {
     setResendLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4000/api/users/resend-otp", {
+      const res = await fetch(`${API_URL}/api/users/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
