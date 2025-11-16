@@ -29,7 +29,6 @@ const requireAuth = (req, res, next) => {
 const requireAdminKey = (req, res, next) => {
   const adminKey = process.env.ADMIN_API_KEY;
   if (!adminKey) {
-    console.warn("⚠️ ADMIN_API_KEY chưa được cấu hình");
     return next();
   }
   

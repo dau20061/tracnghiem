@@ -42,10 +42,6 @@ const requireUser = (req, res, next) => {
 
 const requireAdminKey = (req, res, next) => {
   if (!ADMIN_API_KEY) {
-    if (!adminKeyWarningLogged) {
-      adminKeyWarningLogged = true;
-      console.warn("⚠️  ADMIN_API_KEY chưa được cấu hình. Chat admin API sẽ không yêu cầu khóa.");
-    }
     return next();
   }
   const headerKey = req.headers["x-admin-key"];
