@@ -2,21 +2,40 @@ import nodemailer from 'nodemailer';
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT),
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000,
-      socketTimeout: 15000
-    });
+    // Brevo (Sendinblue) SMTP - Hoạt động tốt với Render
+    const useBrevo = process.env.BREVO_API_KEY;
+    
+    if (useBrevo) {
+      // Dùng Brevo SMTP
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.BREVO_USER || process.env.EMAIL_USER,
+          pass: process.env.BREVO_API_KEY,
+        },
+      });
+      console.log('📧 Using Brevo SMTP');
+    } else {
+      // Fallback to Gmail
+      this.transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+      });
+      console.log('📧 Using Gmail SMTP');
+    }
   }
 
   // Kiểm tra kết nối email
