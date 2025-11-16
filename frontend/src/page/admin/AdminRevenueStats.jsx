@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';import { API_URL } from '../../config/api';
+
 import { useNavigate } from 'react-router-dom';
 import './AdminRevenueStats.css';
 
@@ -36,7 +37,7 @@ const AdminRevenueStats = () => {
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:4000/api/revenue-stats/overview', {
+      const response = await fetch(`${API_URL}/api/revenue-stats/overview', {
         headers: {
           'Content-Type': 'application/json'
           // Add admin key if needed
@@ -61,7 +62,7 @@ const AdminRevenueStats = () => {
   // Fetch timeline data
   const fetchTimeline = useCallback(async (period) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/revenue-stats/timeline?period=${period}`, {
+      const response = await fetch(`${API_URL}/api/revenue-stats/timeline?period=${period}`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -84,7 +85,7 @@ const AdminRevenueStats = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`http://localhost:4000/api/revenue-stats/users/${packageType}?page=${page}&limit=10`, {
+      const response = await fetch(`${API_URL}/api/revenue-stats/users/${packageType}?page=${page}&limit=10`, {
         headers: {
           'Content-Type': 'application/json'
         }

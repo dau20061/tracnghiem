@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import "./adminSupport.css";
 
 import { formatDateTime } from "./adminSupportUtils";
@@ -41,7 +42,7 @@ export default function AdminSupport() {
   const loadThreads = useCallback(async () => {
     setLoadingThreads(true);
     try {
-      const res = await fetch("http://localhost:4000/api/chat/admin/threads");
+      const res = await fetch(`${API_URL}/api/chat/admin/threads");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được danh sách hội thoại");
       setThreads(Array.isArray(data.threads) ? data.threads : []);
@@ -57,7 +58,7 @@ export default function AdminSupport() {
     if (!userId) return;
     setLoadingMessages(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/chat/admin/${userId}`);
+      const res = await fetch(`${API_URL}/api/chat/admin/${userId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được hội thoại");
       setSelected(data.user);
@@ -105,7 +106,7 @@ export default function AdminSupport() {
     setSending(true);
     setError("");
     try {
-      const res = await fetch(`http://localhost:4000/api/chat/admin/${selectedId}`, {
+      const res = await fetch(`${API_URL}/api/chat/admin/${selectedId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),

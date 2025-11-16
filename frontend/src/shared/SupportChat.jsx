@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";import { API_URL } from '../config/api';
+
 import { useLocation, useNavigate } from "react-router-dom";
 import "./SupportChat.css";
 
@@ -41,7 +42,7 @@ export default function SupportChat() {
 
     const fetchMessages = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/chat/user", {
+        const res = await fetch(`${API_URL}/api/chat/user", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
@@ -103,7 +104,7 @@ export default function SupportChat() {
     setSending(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:4000/api/chat/user", {
+      const res = await fetch(`${API_URL}/api/chat/user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

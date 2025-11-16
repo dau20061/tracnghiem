@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "./paymentWaiting.css";
 
@@ -46,7 +47,7 @@ export default function PaymentWaiting() {
         if (!token) return;
 
         const response = await fetch(
-          `http://localhost:4000/api/payments/zalopay/status/${encodeURIComponent(appTransId)}`,
+          `${API_URL}/api/payments/zalopay/status/${encodeURIComponent(appTransId)}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -59,7 +60,7 @@ export default function PaymentWaiting() {
             
             // Refresh user data
             try {
-              const userResponse = await fetch("http://localhost:4000/api/users/me", {
+              const userResponse = await fetch(`${API_URL}/api/users/me", {
                 headers: { Authorization: `Bearer ${token}` },
               });
               if (userResponse.ok) {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';import { API_URL } from '../../config/api';
+
 import { useNavigate } from 'react-router-dom';
 import './QuizHistory.css';
 
@@ -21,7 +22,7 @@ const QuizHistory = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:4000/api/quiz-results/history?page=${page}&limit=10`, {
+      const response = await fetch(`${API_URL}/api/quiz-results/history?page=${page}&limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -47,7 +48,7 @@ const QuizHistory = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:4000/api/quiz-results/stats', {
+      const response = await fetch(`${API_URL}/api/quiz-results/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

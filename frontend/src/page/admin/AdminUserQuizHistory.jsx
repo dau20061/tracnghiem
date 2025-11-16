@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';import { API_URL } from '../../config/api';
+
 import { useParams, useNavigate } from 'react-router-dom';
 import './AdminUserQuizHistory.css';
 
@@ -21,7 +22,7 @@ const AdminUserQuizHistory = () => {
       setLoading(true);
       setError('');
       
-      const response = await fetch(`http://localhost:4000/api/quiz-results/admin/${userId}?page=${page}&limit=10`, {
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/${userId}?page=${page}&limit=10`, {
         headers: {
           'Content-Type': 'application/json'
           // Có thể cần thêm x-admin-key nếu cần
@@ -52,7 +53,7 @@ const AdminUserQuizHistory = () => {
     if (!window.confirm(`Xóa kết quả bài "${quizTitle}"?`)) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/quiz-results/admin/${resultId}`, {
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/${resultId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -76,7 +77,7 @@ const AdminUserQuizHistory = () => {
     if (!window.confirm(`Xóa toàn bộ lịch sử làm bài của ${user?.username}? Hành động này không thể hoàn tác!`)) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/quiz-results/admin/user/${userId}`, {
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/user/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

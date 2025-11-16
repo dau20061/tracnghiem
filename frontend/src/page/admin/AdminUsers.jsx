@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useNavigate } from "react-router-dom";
 import "./adminUsers.css";
 
@@ -25,7 +26,7 @@ export default function AdminUsers() {
     setLoading(true);
     setErr("");
     try {
-      const res = await fetch("http://localhost:4000/api/users/admin");
+      const res = await fetch(`${API_URL}/api/users/admin");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được danh sách user");
       setUsers(Array.isArray(data.users) ? data.users : []);
@@ -81,7 +82,7 @@ export default function AdminUsers() {
       return;
     }
     await adminRequest(
-      "http://localhost:4000/api/users/admin",
+      `${API_URL}/api/users/admin",
       {
         method: "POST",
         body: JSON.stringify({
@@ -97,7 +98,7 @@ export default function AdminUsers() {
   };
 
   const extendPlan = (id, plan) => adminRequest(
-    `http://localhost:4000/api/users/admin/${id}/membership`,
+    `${API_URL}/api/users/admin/${id}/membership`,
     {
       method: "PATCH",
       body: JSON.stringify({ plan }),
@@ -114,7 +115,7 @@ export default function AdminUsers() {
       return;
     }
     adminRequest(
-      `http://localhost:4000/api/users/admin/${id}/membership`,
+      `${API_URL}/api/users/admin/${id}/membership`,
       {
         method: "PATCH",
         body: JSON.stringify({ extendDays: num }),
@@ -131,7 +132,7 @@ export default function AdminUsers() {
       return;
     }
     adminRequest(
-      `http://localhost:4000/api/users/admin/${id}/password`,
+      `${API_URL}/api/users/admin/${id}/password`,
       {
         method: "PATCH",
         body: JSON.stringify({ password: pwd }),
@@ -141,7 +142,7 @@ export default function AdminUsers() {
   };
 
   const toggleDisabled = (user) => adminRequest(
-    `http://localhost:4000/api/users/admin/${user.id}/status`,
+    `${API_URL}/api/users/admin/${user.id}/status`,
     {
       method: "PATCH",
       body: JSON.stringify({ disabled: !user.isDisabled }),
@@ -152,7 +153,7 @@ export default function AdminUsers() {
   const removeUser = (id, username) => {
     if (!window.confirm(`Xóa tài khoản ${username}?`)) return;
     adminRequest(
-      `http://localhost:4000/api/users/admin/${id}`,
+      `${API_URL}/api/users/admin/${id}`,
       { method: "DELETE" },
       "Đã xóa tài khoản"
     );

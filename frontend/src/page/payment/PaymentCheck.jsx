@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useNavigate } from "react-router-dom";
 import "./paymentCheck.css";
 
@@ -27,7 +28,7 @@ export default function PaymentCheck() {
           return;
         }
 
-        const res = await fetch(`http://localhost:4000/api/payments/zalopay/status/${encodeURIComponent(storedAppTransId)}`, {
+        const res = await fetch(`${API_URL}/api/payments/zalopay/status/${encodeURIComponent(storedAppTransId)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -51,7 +52,7 @@ export default function PaymentCheck() {
           localStorage.removeItem("zalopayAppTransId");
           
           // Refresh user data
-          const userRes = await fetch("http://localhost:4000/api/users/me", {
+          const userRes = await fetch(`${API_URL}/api/users/me", {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (userRes.ok) {

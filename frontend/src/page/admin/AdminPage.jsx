@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import "./admin.css";
 
 function makeEmptyQuestion(i = 1) {
@@ -26,7 +27,7 @@ export default function AdminPage() {
     setListLoading(true);
     setErr("");
     try {
-      const res = await fetch("http://localhost:4000/api/quizzes");
+      const res = await fetch(`${API_URL}/api/quizzes");
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || "Không tải được danh sách quiz");
       setQuizList(Array.isArray(json) ? json : []);
@@ -51,7 +52,7 @@ export default function AdminPage() {
     }
     setErr(""); setSavedMsg(""); setLoading(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/quizzes/${encodeURIComponent(targetId)}`);
+      const res = await fetch(`${API_URL}/api/quizzes/${encodeURIComponent(targetId)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || "Lỗi khi tải quiz");
       setQuizId(targetId);
@@ -85,7 +86,7 @@ export default function AdminPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:4000/api/quizzes", {
+      const res = await fetch(`${API_URL}/api/quizzes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(quiz),
@@ -112,7 +113,7 @@ export default function AdminPage() {
     setErr("");
     setSavedMsg("");
     try {
-      const res = await fetch(`http://localhost:4000/api/quizzes/${encodeURIComponent(targetId)}`, {
+      const res = await fetch(`${API_URL}/api/quizzes/${encodeURIComponent(targetId)}`, {
         method: "DELETE",
       });
       const json = await res.json();
@@ -172,7 +173,7 @@ export default function AdminPage() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('http://localhost:4000/api/images/upload', { method: 'POST', body: fd });
+      const res = await fetch(`${API_URL}/api/images/upload', { method: 'POST', body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Upload lỗi');
       // json.url is like /api/images/:id — form absolute URL to load from backend

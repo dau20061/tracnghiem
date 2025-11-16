@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { API_URL } from "../config/api";
 import "./UserBadge.css";
 
 const getStoredUser = () => {
@@ -53,7 +54,7 @@ export default function UserBadge() {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/users/me", {
+        const res = await fetch(`${API_URL}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {

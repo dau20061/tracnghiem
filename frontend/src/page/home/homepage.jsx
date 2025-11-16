@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useSearchParams } from "react-router-dom";
 import "./homepage.css";
 
@@ -61,7 +62,7 @@ export default function HomePage() {
       // Refresh user data
       const token = localStorage.getItem("token");
       if (token) {
-        fetch("http://localhost:4000/api/users/me", {
+        fetch(`${API_URL}/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then(res => res.ok ? res.json() : null)

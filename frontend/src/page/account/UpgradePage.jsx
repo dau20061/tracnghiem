@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../config/api";
 import "./upgrade.css";
 
 const plans = [
@@ -46,7 +47,7 @@ export default function UpgradePage() {
       localStorage.removeItem("zalopayAppTransId");
       localStorage.removeItem("zalopayQrCode");
       localStorage.removeItem("zalopayOrderUrl");
-      const res = await fetch("http://localhost:4000/api/payments/zalopay/order", {
+      const res = await fetch(`${API_URL}/api/payments/zalopay/order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

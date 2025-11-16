@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "./paymentSuccess.css";
 
@@ -37,7 +38,7 @@ export default function PaymentSuccess() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const response = await fetch("http://localhost:4000/api/users/me", {
+          const response = await fetch(`${API_URL}/api/users/me", {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (response.ok) {

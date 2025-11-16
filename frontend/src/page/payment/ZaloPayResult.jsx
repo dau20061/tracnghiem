@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "./zalopayResult.css";
 
@@ -71,7 +72,7 @@ export default function ZaloPayResult() {
       try {
         const token = tokenRef.current;
         if (!token) return;
-        const res = await fetch("http://localhost:4000/api/users/me", {
+        const res = await fetch(`${API_URL}/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
@@ -88,7 +89,7 @@ export default function ZaloPayResult() {
     const pollStatus = async () => {
       try {
         attemptsRef.current += 1;
-        const res = await fetch(`http://localhost:4000/api/payments/zalopay/status/${encodeURIComponent(appTransId)}` , {
+        const res = await fetch(`${API_URL}/api/payments/zalopay/status/${encodeURIComponent(appTransId)}` , {
           headers: { Authorization: `Bearer ${tokenRef.current}` },
         });
         if (res.status === 401) {
@@ -161,7 +162,7 @@ export default function ZaloPayResult() {
 
   const simulatePayment = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/payments/zalopay/simulate/${encodeURIComponent(appTransId)}`, {
+      const res = await fetch(`${API_URL}/api/payments/zalopay/simulate/${encodeURIComponent(appTransId)}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${tokenRef.current}` },
       });

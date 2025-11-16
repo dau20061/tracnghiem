@@ -1,6 +1,7 @@
 // ...existing code...
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { API_URL } from "../../config/api";
 import "./login.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -31,7 +32,7 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    const res = await fetch("http://localhost:4000/api/users/login", {
+    const res = await fetch(`${API_URL}/api/users/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password: pwd }),
@@ -49,7 +50,7 @@ export default function LoginPage() {
     if (pwd.length < 6) throw new Error("Mật khẩu tối thiểu 6 ký tự");
     if (pwd !== confirm) throw new Error("Mật khẩu nhập lại không khớp");
     if (!EMAIL_REGEX.test(email.trim())) throw new Error("Email không hợp lệ");
-    const res = await fetch("http://localhost:4000/api/users/register", {
+    const res = await fetch(`${API_URL}/api/users/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password: pwd, email: email.trim() }),

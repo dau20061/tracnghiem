@@ -1,5 +1,6 @@
 // src/page/quiz/QuizPage.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";import { API_URL } from '../../config/api';
+
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "./quiz.css";
 
@@ -85,7 +86,7 @@ export default function QuizPage() {
 
     const fetchMe = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/users/me", {
+        const res = await fetch(`${API_URL}/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
@@ -124,7 +125,7 @@ export default function QuizPage() {
     const run = async () => {
       setLoading(true); setErr("");
       try {
-        const res = await fetch(`http://localhost:4000/api/quizzes/${encodeURIComponent(quizId)}`);
+        const res = await fetch(`${API_URL}/api/quizzes/${encodeURIComponent(quizId)}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || "Không tải được đề");
         setData(json);
