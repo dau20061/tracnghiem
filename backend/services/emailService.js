@@ -6,9 +6,15 @@ class EmailService {
     this.brevoApiKey = process.env.BREVO_API_KEY;
     this.useBrevoAPI = !!this.brevoApiKey;
     
+    console.log('🔍 Email Service Config:');
+    console.log('  BREVO_API_KEY:', this.brevoApiKey ? '✅ SET' : '❌ NOT SET');
+    console.log('  EMAIL_USER:', process.env.EMAIL_USER || process.env.BREVO_USER || 'NOT SET');
+    console.log('  EMAIL_FROM_NAME:', process.env.EMAIL_FROM_NAME || 'NOT SET');
+    
     if (this.useBrevoAPI) {
       console.log('📧 Using Brevo HTTP API (no SMTP blocking)');
     } else {
+      console.log('⚠️ BREVO_API_KEY not found, falling back to Gmail SMTP');
       // Fallback to Gmail SMTP
       this.transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -32,6 +38,12 @@ class EmailService {
   // Gửi email qua Brevo HTTP API
   async sendViaBrevoAPI(to, subject, htmlContent) {
     try {
+      const senderEmail = process.env.BREVO_USER || process.env.EMAIL_USER || 'noreply@tracnghiem.com';
+      const senderName = process.env.EMAIL_FROM_NAME || 'TracNghiem Platform';
+      
+      console.log(`📤 Sending via Brevo API to: ${to}`);
+      console.log(`   From: ${senderName} <${senderEmail}>`);
+      
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -41,8 +53,8 @@ class EmailService {
         },
         body: JSON.stringify({
           sender: {
-            name: process.env.EMAIL_FROM_NAME || 'TracNghiem Platform',
-            email: process.env.BREVO_USER || process.env.EMAIL_USER
+            name: senderName,
+            email: senderEmail
           },
           to: [{ email: to }],
           subject: subject,
@@ -51,15 +63,25 @@ class EmailService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Brevo API error');
+        const errorText = await response.text();
+        console.error('❌ Brevo API Response Error:', response.status, errorText);
+        let errorMsg = `Brevo API error (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMsg = errorJson.message || errorMsg;
+        } catch (e) {
+          errorMsg = errorText || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
-      console.log('📧 Email sent via Brevo API:', data.messageId);
+      console.log('✅ Email sent via Brevo API successfully!');
+      console.log('   Message ID:', data.messageId);
       return { success: true, messageId: data.messageId };
     } catch (error) {
       console.error('❌ Brevo API error:', error.message);
+      console.error('   Full error:', error);
       return { success: false, error: error.message };
     }
   }
