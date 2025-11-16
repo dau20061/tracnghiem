@@ -79,6 +79,9 @@ router.get("/overview", requireAdminKey, async (req, res) => {
       const userMap = new Map();
       
       for (const trx of transactions) {
+        // Bỏ qua nếu user không tồn tại (đã bị xóa)
+        if (!trx.user) continue;
+        
         const userId = trx.user._id.toString();
         if (!userMap.has(userId)) {
           userMap.set(userId, {
