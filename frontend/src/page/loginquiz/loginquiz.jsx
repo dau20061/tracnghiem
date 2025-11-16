@@ -32,13 +32,23 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    const res = await fetch(`${API_URL}/api/users/login`, {
+    const res = await fetch("http://localhost:4000/api/users/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password: pwd }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
+    
+    // Kiểm tra nếu tài khoản cần xác thực OTP
+    if (data.needsVerification) {
+      setNotice("Tài khoản chưa được xác thực. Vui lòng kiểm tra email và nhập mã OTP.");
+      setTimeout(() => {
+        navigate("/verify-otp", { state: { username } });
+      }, 2000);
+      return;
+    }
+    
     saveAuth(data.token, data.user);
     const next = typeof fromPath === "string" && fromPath && fromPath !== "/login"
       ? fromPath
@@ -50,13 +60,20 @@ export default function LoginPage() {
     if (pwd.length < 6) throw new Error("Mật khẩu tối thiểu 6 ký tự");
     if (pwd !== confirm) throw new Error("Mật khẩu nhập lại không khớp");
     if (!EMAIL_REGEX.test(email.trim())) throw new Error("Email không hợp lệ");
-    const res = await fetch(`${API_URL}/api/users/register`, {
+    const res = await fetch("http://localhost:4000/api/users/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password: pwd, email: email.trim() }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Đăng ký thất bại");
+    
+    // Chuyển hướng đến trang xác thực OTP
+    if (data.user?.needsVerification) {
+      navigate("/verify-otp", { state: { username } });
+      return;
+    }
+    
     setNotice("Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.");
     setMode("login");
     setUsername("");

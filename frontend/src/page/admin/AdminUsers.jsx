@@ -28,7 +28,7 @@ export default function AdminUsers() {
     setErr("");
     try {
       const res = await fetch(`${API_URL}/api/users/admin`);
-      const json = await res.json();
+      const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được danh sách user");
       setUsers(Array.isArray(data.users) ? data.users : []);
     } catch (e) {
@@ -230,14 +230,15 @@ export default function AdminUsers() {
               <th>Tài khoản</th>
               <th>Hết hạn</th>
               <th>Tạo lúc</th>
-              <th>Trạng thái</th>
+              <th>Xác thực</th>
+              <th>Trạng thái hoạt động</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={6} className="empty">Chưa có dữ liệu. Nhập khóa và bấm tải lại.</td>
+                <td colSpan={7} className="empty">Chưa có dữ liệu. Nhập khóa và bấm tải lại.</td>
               </tr>
             )}
             {users.map((user) => (
@@ -254,7 +255,24 @@ export default function AdminUsers() {
                 </td>
                 <td>{formatDate(user.membershipExpiresAt)}</td>
                 <td>{formatDate(user.createdAt)}</td>
-                <td>{user.isDisabled ? "Đã vô hiệu hóa" : "Đang hoạt động"}</td>
+                <td>
+                  {user.isVerified ? (
+                    <span style={{ color: 'green', fontWeight: 'bold' }}>✓ Đã xác thực</span>
+                  ) : (
+                    <span style={{ color: 'orange', fontWeight: 'bold' }}>⚠ Chưa xác thực</span>
+                  )}
+                </td>
+                <td>
+                  <span style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    backgroundColor: user.accountStatus === 'active' ? '#e6ffe6' : user.accountStatus === 'pending' ? '#fff4e6' : '#ffe6e6',
+                    color: user.accountStatus === 'active' ? '#008000' : user.accountStatus === 'pending' ? '#ff8c00' : '#ff0000'
+                  }}>
+                    {user.accountStatus === 'pending' ? '🕐 Đang xác thực' : user.accountStatus === 'active' ? '✓ Đang hoạt động' : '✕ Vô hiệu hóa'}
+                  </span>
+                </td>
                 <td>
                   <div className="actions">
                     <button type="button" onClick={() => navigate(`/admin/users/${user.id}/quiz-history`)}>📊 Lịch sử bài làm</button>

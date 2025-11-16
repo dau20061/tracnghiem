@@ -300,6 +300,78 @@ class EmailService {
     `;
   }
 
+  // Gửi email OTP xác thực
+  async sendOTPEmail(userEmail, userName, otp) {
+    try {
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { text-align: center; color: #2563eb; margin-bottom: 30px; }
+                .otp-box { background: #eff6ff; border: 2px dashed #2563eb; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; }
+                .otp-code { font-size: 36px; font-weight: bold; color: #2563eb; letter-spacing: 8px; }
+                .content { line-height: 1.8; color: #333; }
+                .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }
+                .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔐 Xác thực tài khoản</h1>
+                </div>
+                <div class="content">
+                    <p>Xin chào <strong>${userName}</strong>,</p>
+                    <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>TracNghiem Platform</strong>!</p>
+                    <p>Để hoàn tất quá trình đăng ký, vui lòng nhập mã OTP bên dưới:</p>
+                    
+                    <div class="otp-box">
+                        <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">MÃ XÁC THỰC CỦA BẠN</p>
+                        <div class="otp-code">${otp}</div>
+                        <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 13px;">Mã có hiệu lực trong <strong>10 phút</strong></p>
+                    </div>
+
+                    <div class="warning">
+                        <strong>⚠️ Lưu ý bảo mật:</strong>
+                        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                            <li>Không chia sẻ mã OTP này với bất kỳ ai</li>
+                            <li>TracNghiem sẽ không bao giờ yêu cầu mã OTP qua điện thoại</li>
+                            <li>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email</li>
+                        </ul>
+                    </div>
+
+                    <p>Nếu bạn gặp vấn đề, vui lòng liên hệ: <a href="mailto:${process.env.EMAIL_USER}" style="color: #2563eb;">${process.env.EMAIL_USER}</a></p>
+                </div>
+                <div class="footer">
+                    <p><strong>TracNghiem Platform</strong></p>
+                    <p>© 2024 TracNghiem. All rights reserved.</p>
+                    <p style="font-size: 12px; margin-top: 10px;">Email này được gửi tự động, vui lòng không reply.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `;
+
+      const mailOptions = {
+        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: '🔐 Mã xác thực OTP - TracNghiem Platform',
+        html: htmlContent,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('📧 OTP email sent:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('❌ Failed to send OTP email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Gửi email chào mừng cho user mới đăng ký
   async sendWelcomeEmail(userEmail, userName) {
     try {

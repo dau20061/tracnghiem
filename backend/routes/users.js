@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import emailService from "../services/emailService.js";
 
 const router = Router();
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
@@ -64,6 +65,8 @@ const sanitizeUser = (user) => ({
   membershipLevel: user.membershipLevel,
   membershipExpiresAt: user.membershipExpiresAt,
   isDisabled: !!user.isDisabled,
+  isVerified: !!user.isVerified,
+  accountStatus: user.accountStatus || "pending",
   totalPurchasedMs: resolveTotalPurchased(user),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
@@ -188,9 +191,133 @@ router.post("/register", async (req, res) => {
     if (emailExists) {
       return res.status(409).json({ message: "Email đã được sử dụng" });
     }
+    
+    // Tạo mã OTP 6 số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+    
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, passwordHash, email: normalizedEmail });
-    return res.status(201).json({ message: "Đăng ký thành công", user: sanitizeUser(user) });
+    const user = await User.create({ 
+      username, 
+      passwordHash, 
+      email: normalizedEmail,
+      verificationOTP: otp,
+      otpExpiresAt: otpExpiresAt,
+      isVerified: false,
+      accountStatus: "pending"
+    });
+    
+    // Gửi email OTP
+    try {
+      await emailService.sendOTPEmail(normalizedEmail, username, otp);
+      console.log(`📧 OTP sent to ${normalizedEmail}: ${otp}`);
+    } catch (emailError) {
+      console.error("Failed to send OTP email:", emailError);
+      // Không fail registration nếu email lỗi
+    }
+    
+    return res.status(201).json({ 
+      message: "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.", 
+      user: { ...sanitizeUser(user), needsVerification: true }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Xác thực OTP
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { username, otp } = req.body || {};
+    if (!username || !otp) {
+      return res.status(400).json({ message: "Thiếu username/otp" });
+    }
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: "Tài khoản không tồn tại" });
+    }
+    
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Tài khoản đã được xác thực" });
+    }
+    
+    if (!user.verificationOTP) {
+      return res.status(400).json({ message: "Không có mã OTP. Vui lòng đăng ký lại" });
+    }
+    
+    // Kiểm tra OTP hết hạn
+    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+      return res.status(400).json({ message: "Mã OTP đã hết hạn. Vui lòng yêu cầu gửi lại" });
+    }
+    
+    // Kiểm tra OTP đúng
+    if (user.verificationOTP !== otp) {
+      return res.status(401).json({ message: "Mã OTP không đúng" });
+    }
+    
+    // Cập nhật user
+    user.isVerified = true;
+    user.accountStatus = "active";
+    user.verificationOTP = null;
+    user.otpExpiresAt = null;
+    await user.save();
+    
+    // Gửi email chào mừng
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.username);
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+    }
+    
+    const token = signToken(user);
+    return res.json({ 
+      message: "Xác thực thành công!", 
+      token, 
+      user: sanitizeUser(user) 
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Gửi lại OTP
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { username } = req.body || {};
+    if (!username) {
+      return res.status(400).json({ message: "Thiếu username" });
+    }
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: "Tài khoản không tồn tại" });
+    }
+    
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Tài khoản đã được xác thực" });
+    }
+    
+    // Tạo OTP mới
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    
+    user.verificationOTP = otp;
+    user.otpExpiresAt = otpExpiresAt;
+    await user.save();
+    
+    // Gửi email
+    try {
+      await emailService.sendOTPEmail(user.email, user.username, otp);
+      console.log(`📧 OTP resent to ${user.email}: ${otp}`);
+    } catch (emailError) {
+      console.error("Failed to resend OTP email:", emailError);
+      return res.status(500).json({ message: "Không thể gửi email OTP" });
+    }
+    
+    return res.json({ message: "Đã gửi lại mã OTP. Vui lòng kiểm tra email" });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Lỗi máy chủ" });
@@ -207,6 +334,16 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "Sai tài khoản hoặc mật khẩu" });
     }
+    
+    // Kiểm tra tài khoản chưa xác thực
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        message: "Tài khoản chưa được xác thực. Vui lòng kiểm tra email và nhập mã OTP",
+        needsVerification: true,
+        username: user.username
+      });
+    }
+    
     if (user.isDisabled) {
       return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa" });
     }
