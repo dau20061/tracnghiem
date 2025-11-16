@@ -1,96 +1,63 @@
+import { Resend } from 'resend';
+
 class EmailService {
   constructor() {
-    // Chỉ dùng Brevo HTTP API - không cần SMTP
-    this.brevoApiKey = process.env.BREVO_API_KEY;
-    this.senderEmail = process.env.BREVO_USER || process.env.EMAIL_USER;
+    // Dùng Resend - đơn giản và chắc chắn hoạt động
+    this.resendApiKey = process.env.RESEND_API_KEY;
+    this.senderEmail = 'onboarding@resend.dev'; // Email mặc định của Resend (miễn phí)
     this.senderName = process.env.EMAIL_FROM_NAME || 'TracNghiem Platform';
     
     console.log('='.repeat(60));
     console.log('🔍 EMAIL SERVICE INITIALIZATION');
     console.log('='.repeat(60));
-    console.log('  Mode: Brevo HTTP API Only (No SMTP)');
-    console.log('  BREVO_API_KEY:', this.brevoApiKey ? '✅ CONFIGURED' : '❌ MISSING');
-    console.log('  Sender Email:', this.senderEmail || '❌ NOT SET');
+    console.log('  Mode: Resend API (Simple & Reliable)');
+    console.log('  RESEND_API_KEY:', this.resendApiKey ? '✅ CONFIGURED' : '❌ MISSING');
+    console.log('  Sender Email:', this.senderEmail);
     console.log('  Sender Name:', this.senderName);
     console.log('='.repeat(60));
     
-    if (!this.brevoApiKey) {
+    if (!this.resendApiKey) {
       console.error('');
-      console.error('❌ ERROR: BREVO_API_KEY is required!');
-      console.error('   Email service will NOT work without it.');
-      console.error('   Please set BREVO_API_KEY in your environment variables.');
-      console.error('');
-    } else if (!this.senderEmail) {
-      console.error('');
-      console.error('❌ ERROR: Sender email is required!');
-      console.error('   Please set BREVO_USER or EMAIL_USER in your environment variables.');
+      console.error('❌ ERROR: RESEND_API_KEY is required!');
+      console.error('   Get free API key at: https://resend.com/api-keys');
+      console.error('   Add to Render: RESEND_API_KEY=re_xxxxx');
       console.error('');
     } else {
-      console.log('✅ Email service ready - Using Brevo HTTP API\n');
+      this.resend = new Resend(this.resendApiKey);
+      console.log('✅ Email service ready - Using Resend API\n');
     }
   }
 
-  // Gửi email qua Brevo HTTP API
+  // Gửi email qua Resend API
   async sendEmail(to, subject, htmlContent) {
-    if (!this.brevoApiKey) {
-      const error = 'BREVO_API_KEY not configured';
-      console.error('❌ Cannot send email:', error);
-      return { success: false, error };
-    }
-
-    if (!this.senderEmail) {
-      const error = 'Sender email not configured';
+    if (!this.resendApiKey) {
+      const error = 'RESEND_API_KEY not configured';
       console.error('❌ Cannot send email:', error);
       return { success: false, error };
     }
 
     try {
-      console.log('\n📤 SENDING EMAIL');
+      console.log('\n📤 SENDING EMAIL via Resend');
       console.log('   To:', to);
       console.log('   Subject:', subject);
       console.log('   From:', `${this.senderName} <${this.senderEmail}>`);
       
-      const requestBody = {
-        sender: {
-          name: this.senderName,
-          email: this.senderEmail
-        },
-        to: [{ email: to }],
+      const { data, error } = await this.resend.emails.send({
+        from: `${this.senderName} <${this.senderEmail}>`,
+        to: [to],
         subject: subject,
-        htmlContent: htmlContent
-      };
-
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': this.brevoApiKey,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
+        html: htmlContent,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Brevo API Error Response:', response.status);
-        console.error('   Response:', errorText);
-        
-        let errorMsg = `Brevo API error (${response.status})`;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMsg = errorJson.message || errorMsg;
-          console.error('   Message:', errorMsg);
-        } catch (e) {
-          errorMsg = errorText || errorMsg;
-        }
-        throw new Error(errorMsg);
+      if (error) {
+        console.error('❌ Resend API Error:', error);
+        throw new Error(error.message || 'Resend API error');
       }
 
-      const data = await response.json();
       console.log('✅ EMAIL SENT SUCCESSFULLY!');
-      console.log('   Message ID:', data.messageId);
+      console.log('   Message ID:', data.id);
       console.log('');
-      return { success: true, messageId: data.messageId };
+      return { success: true, messageId: data.id };
     } catch (error) {
       console.error('❌ FAILED TO SEND EMAIL');
       console.error('   Error:', error.message);
@@ -101,17 +68,12 @@ class EmailService {
 
   // Kiểm tra cấu hình
   async verifyConnection() {
-    if (!this.brevoApiKey) {
-      console.error('❌ Cannot verify: BREVO_API_KEY not set');
+    if (!this.resendApiKey) {
+      console.error('❌ Cannot verify: RESEND_API_KEY not set');
       return false;
     }
     
-    if (!this.senderEmail) {
-      console.error('❌ Cannot verify: Sender email not set');
-      return false;
-    }
-    
-    console.log('✅ Email service configured with Brevo HTTP API');
+    console.log('✅ Email service configured with Resend API');
     return true;
   }
 
