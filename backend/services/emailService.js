@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 class EmailService {
   constructor() {
     // Dùng Resend - đơn giản và chắc chắn hoạt động
-    this.resendApiKey = process.env.RESEND_API_KEY;
+    this.resendApiKey = process.env.RESEND_API_KEY || 're_6ZEqYtEN_14wSn7Bo5DPxFo7uh9KFF1C1';
     this.senderEmail = 'onboarding@resend.dev'; // Email mặc định của Resend (miễn phí)
     this.senderName = process.env.EMAIL_FROM_NAME || 'TracNghiem Platform';
     
