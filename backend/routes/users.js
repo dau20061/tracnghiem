@@ -208,14 +208,17 @@ router.post("/register", async (req, res) => {
     });
     
     // Gửi email OTP
+    console.log(`🔐 OTP for ${username} (${normalizedEmail}): ${otp}`);
     try {
-      await emailService.sendOTPEmail(normalizedEmail, username, otp);
-      console.log(`📧 OTP sent to ${normalizedEmail}: ${otp}`);
+      const result = await emailService.sendOTPEmail(normalizedEmail, username, otp);
+      if (result.success) {
+        console.log(`✅ OTP email delivered successfully`);
+      } else {
+        console.error(`⚠️ OTP email failed but user can still verify with: ${otp}`);
+      }
     } catch (emailError) {
-      console.error("❌ Failed to send OTP email:", emailError.message);
-      console.error("⚠️ Email service timeout - OTP saved in database:", otp);
-      // Không fail registration nếu email lỗi
-      // User vẫn có thể dùng resend-otp hoặc admin có thể xem OTP trong logs
+      console.error("❌ Email service error:", emailError.message);
+      console.error(`⚠️ IMPORTANT - User ${username} OTP: ${otp} (valid for 10 min)`);
     }
     
     return res.status(201).json({ 
@@ -266,12 +269,10 @@ router.post("/verify-otp", async (req, res) => {
     user.otpExpiresAt = null;
     await user.save();
     
-    // Gửi email chào mừng
-    try {
-      await emailService.sendWelcomeEmail(user.email, user.username);
-    } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
-    }
+    // Gửi email chào mừng (async, không chờ để tránh timeout)
+    emailService.sendWelcomeEmail(user.email, user.username)
+      .then(() => console.log(`📧 Welcome email sent to ${user.email}`))
+      .catch(err => console.error("⚠️ Welcome email failed (non-critical):", err.message));
     
     const token = signToken(user);
     return res.json({ 

@@ -306,8 +306,8 @@ class EmailService {
     `;
   }
 
-  // Gửi email OTP xác thực
-  async sendOTPEmail(userEmail, userName, otp) {
+  // Gửi email OTP xác thực với retry
+  async sendOTPEmail(userEmail, userName, otp, retries = 2) {
     try {
       const htmlContent = `
         <!DOCTYPE html>
@@ -373,7 +373,15 @@ class EmailService {
       console.log('📧 OTP email sent:', result.messageId);
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      console.error('❌ Failed to send OTP email:', error);
+      console.error(`❌ Failed to send OTP email (attempt ${3 - retries}/3):`, error.message);
+      
+      // Retry nếu là timeout và còn lượt thử
+      if (retries > 0 && (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION')) {
+        console.log(`🔄 Retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Đợi 2s
+        return this.sendOTPEmail(userEmail, userName, otp, retries - 1);
+      }
+      
       return { success: false, error: error.message };
     }
   }
