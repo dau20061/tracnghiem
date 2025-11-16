@@ -95,3 +95,9 @@ Chạy `npm install` trong folder `frontend`
 ## URLs sau deploy
 - Frontend: `https://your-app.vercel.app`
 - Backend: `https://your-backend.onrender.com` (không đổi)
+
+## Tài khoản admin mặc định
+- Username: `admin`
+- Password: `123456`
+- Quyền: truy cập toàn bộ trang `/admin` để quản lý quiz, user, doanh thu
+- Ghi chú: tài khoản này được tạo tự động khi backend khởi động; hãy đổi mật khẩu trong môi trường production nếu cần bảo mật cao hơn

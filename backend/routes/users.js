@@ -63,7 +63,7 @@ const sanitizeUser = (user) => ({
   id: (user._id || user.id)?.toString(),
   username: user.username,
   email: user.email,
-  role: user.role,
+  role: user.role || "user",
   membershipLevel: user.membershipLevel,
   membershipExpiresAt: user.membershipExpiresAt,
   isDisabled: !!user.isDisabled,

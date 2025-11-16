@@ -11,6 +11,7 @@ import QuizPage from "./page/quizz/QuizPage";
 import AdminLayout from "./page/admin/AdminLayout";
 import AdminPage from "./page/admin/AdminPage";
 import RequireAuth from "./shared/RequireAuth"; // from: RequireAuth.jsx
+import RequireAdmin from "./shared/RequireAdmin";
 import QuizComplete from "./page/quizz/QuizComplete"; // from: QuizComplete.jsx
 import UpgradePage from "./page/account/UpgradePage";
 import UserBadge from "./shared/UserBadge";
@@ -41,7 +42,14 @@ export default function App() {
         <Route path="/payment/check" element={<PaymentCheck />} />
         <Route path="/payment/waiting" element={<PaymentWaiting />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminLayout />
+            </RequireAdmin>
+          }
+        >
           <Route index element={<AdminPage />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="users/:userId/quiz-history" element={<AdminUserQuizHistory />} />
