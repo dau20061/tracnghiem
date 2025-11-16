@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, memo } from "react";
 import { API_URL } from '../../config/api';
 
 import "./admin.css";
@@ -12,6 +12,321 @@ function makeEmptyQuestion(i = 1) {
     correct: "A",
   };
 }
+
+// Tách QuestionEditor ra ngoài và memo để tránh re-render
+const QuestionEditor = memo(({ 
+  qObj, 
+  idx, 
+  updateQuestion, 
+  removeQuestion, 
+  addOption, 
+  updateOptionText, 
+  updateOptionTextAndPreview,
+  uploadImageFile,
+  removeOption,
+  normalizeBinaryQuestion,
+  normalizeDragQuestion,
+  updateBinaryColumn,
+  addBinaryItem,
+  updateBinaryItem,
+  removeBinaryItem,
+  addDragBankOption,
+  updateDragBankOption,
+  removeDragBankOption,
+  addDragTarget,
+  updateDragTarget,
+  updateDragTargetMapping,
+  removeDragTarget,
+  localPreviews,
+  setLocalPreviews
+}) => {
+  if (!qObj) return null;
+  const binaryData = qObj.type === "binary" ? normalizeBinaryQuestion(qObj) : null;
+  const dragData = qObj.type === "dragdrop" ? normalizeDragQuestion(qObj) : null;
+  return (
+    <div className="q-editor">
+      <div className="q-row">
+        <label>ID</label>
+        <input value={qObj.id} onChange={(e)=>updateQuestion(idx, { id: e.target.value })} />
+        <label>Type</label>
+        <select value={qObj.type} onChange={(e)=>{
+          const newType = e.target.value;
+          if (newType === 'image_grid') {
+            // ensure 4 options for image grid
+            const opts = [
+              { id: 'A', text: '' },
+              { id: 'B', text: '' },
+              { id: 'C', text: '' },
+              { id: 'D', text: '' },
+            ];
+            updateQuestion(idx, { type: newType, options: opts, correct: 'A' });
+            return;
+          }
+          if (newType === 'binary') {
+            const normalized = normalizeBinaryQuestion(qObj);
+            updateQuestion(idx, { type: newType, columns: normalized.columns, items: normalized.items });
+            return;
+          }
+          if (newType === 'dragdrop') {
+            const normalized = normalizeDragQuestion(qObj);
+            updateQuestion(idx, {
+              type: newType,
+              bank: normalized.bank,
+              targets: normalized.targets,
+              correctMapping: normalized.correctMapping
+            });
+            return;
+          }
+          updateQuestion(idx, { type: newType });
+        }}>
+          <option value="single">Single</option>
+          <option value="multi">Multi</option>
+          <option value="binary">Binary (2-col)</option>
+          <option value="dragdrop">DragDrop</option>
+          <option value="image_single">Image Single</option>
+          <option value="image_grid">Image Grid (4 images)</option>
+        </select>
+        <button className="btn btn-light" onClick={()=>removeQuestion(idx)}>Xóa câu</button>
+      </div>
+
+      <div className="q-row">
+        <label>Prompt</label>
+        <input value={qObj.prompt || ""} onChange={(e)=>updateQuestion(idx, { prompt: e.target.value })} style={{flex:1}} />
+      </div>
+
+      {qObj.type === "single" && (
+        <div className="options-box">
+          <div className="opts-title">Các lựa chọn</div>
+          { (qObj.options || []).map((o, oi) => (
+            <div key={oi} className="opt-row">
+              <div className="opt-id">{o.id}</div>
+              <input value={o.text} onChange={(e)=>updateOptionText(idx, oi, e.target.value)} />
+              <label>Đúng?</label>
+              <input type="radio" name={`correct-${idx}`} checked={qObj.correct === o.id} onChange={()=>updateQuestion(idx, { correct: o.id })} />
+              <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
+            </div>
+          )) }
+          <div>
+            <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
+          </div>
+        </div>
+      )}
+
+      {qObj.type === "image_single" && (
+        <div className="options-box">
+          <div className="opts-title">Các hình ảnh</div>
+          {(qObj.options || []).map((o, oi) => {
+            const key = `${idx}-${oi}`;
+            const previewSrc = localPreviews[key] || o.text || "";
+            const hasLocalPreview = Object.prototype.hasOwnProperty.call(localPreviews, key);
+            return (
+              <div key={oi} className="image-option">
+                <div className="image-option-head">
+                  <div className="opt-id">{o.id}</div>
+                  <input
+                    value={o.text}
+                    placeholder={`URL hình ${o.id}`}
+                    onChange={(e)=>updateOptionTextAndPreview(idx, oi, e.target.value)}
+                  />
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e)=>uploadImageFile(e.target.files?.[0], idx, oi)}
+                />
+                <div className="img-preview">
+                  {previewSrc ? (
+                    <img
+                      src={previewSrc}
+                      alt={o.id}
+                      onError={() => {
+                        if (hasLocalPreview) {
+                          setLocalPreviews((p) => {
+                            if (!Object.prototype.hasOwnProperty.call(p, key)) return p;
+                            const next = { ...p };
+                            delete next[key];
+                            return next;
+                          });
+                        }
+                        console.warn('Không thể tải preview ảnh', previewSrc);
+                      }}
+                    />
+                  ) : (
+                    <span className="empty">Preview</span>
+                  )}
+                </div>
+                <div className="image-option-meta">
+                  <label>Đúng?</label>
+                  <input
+                    type="radio"
+                    name={`correct-img-single-${idx}`}
+                    checked={qObj.correct === o.id}
+                    onChange={()=>updateQuestion(idx, { correct: o.id })}
+                  />
+                  <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
+                </div>
+              </div>
+            );
+          })}
+          <div>
+            <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
+          </div>
+        </div>
+      )}
+
+      {qObj.type === "multi" && (
+        <div className="options-box">
+          <div className="opts-title">Các lựa chọn (chọn nhiều)</div>
+          { (qObj.options || []).map((o, oi) => (
+            <div key={oi} className="opt-row">
+              <div className="opt-id">{o.id}</div>
+              <input value={o.text} onChange={(e)=>updateOptionText(idx, oi, e.target.value)} />
+              <label>Đúng?</label>
+              <input type="checkbox" checked={(qObj.correct || []).includes(o.id)} onChange={(e)=>{
+                const cur = new Set(qObj.correct || []);
+                if (e.target.checked) cur.add(o.id); else cur.delete(o.id);
+                updateQuestion(idx, { correct: Array.from(cur) });
+              }} />
+              <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
+            </div>
+          )) }
+          <div>
+            <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
+          </div>
+        </div>
+      )}
+
+      {qObj.type === "image_grid" && (
+        <div className="options-box">
+          <div className="opts-title">4 hình ảnh (nhập URL)</div>
+          <div className="image-grid">
+            { (qObj.options || []).map((o, oi) => (
+              <div key={oi} className="image-item">
+                <div className="opt-id">{o.id}</div>
+                <input value={o.text} placeholder={`URL hình ${o.id}`} onChange={(e)=>updateOptionTextAndPreview(idx, oi, e.target.value)} />
+                <input type="file" accept="image/*" onChange={(e)=>uploadImageFile(e.target.files?.[0], idx, oi)} />
+                <div className="img-preview">{(localPreviews[`${idx}-${oi}`] || o.text) ? <img src={localPreviews[`${idx}-${oi}`] || o.text} alt={o.id} /> : <span className="empty">Preview</span>}</div>
+                <label>Đúng?</label>
+                <input type="radio" name={`correct-img-${idx}`} checked={qObj.correct === o.id} onChange={()=>updateQuestion(idx, { correct: o.id })} />
+              </div>
+            )) }
+          </div>
+        </div>
+      )}
+
+      {qObj.type === "binary" && binaryData && (
+        <div className="options-box binary-box">
+          <div className="opts-title">Thiết lập cột</div>
+          <div className="binary-columns">
+            <label>
+              Cột 1
+              <input
+                value={binaryData.columns[0]}
+                onChange={(e)=>updateBinaryColumn(idx, 0, e.target.value)}
+              />
+            </label>
+            <label>
+              Cột 2
+              <input
+                value={binaryData.columns[1]}
+                onChange={(e)=>updateBinaryColumn(idx, 1, e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="opts-title" style={{ marginTop: 12 }}>Các phát biểu</div>
+          {binaryData.items.map((item, itemIdx) => (
+            <div key={item.id || itemIdx} className="binary-item-row">
+              <div className="opt-id">{itemIdx + 1}</div>
+              <input
+                value={item.text}
+                placeholder={`Nội dung phát biểu ${itemIdx + 1}`}
+                onChange={(e)=>updateBinaryItem(idx, itemIdx, { text: e.target.value })}
+              />
+              <select
+                value={item.correctColumn}
+                onChange={(e)=>updateBinaryItem(idx, itemIdx, { correctColumn: e.target.value })}
+              >
+                {binaryData.columns.map((col, colIdx) => (
+                  <option key={`${col}-${colIdx}`} value={col}>{col || `Cột ${colIdx + 1}`}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-light"
+                onClick={()=>removeBinaryItem(idx, itemIdx)}
+                disabled={binaryData.items.length <= 1}
+                title="Xóa phát biểu"
+              >
+                −
+              </button>
+            </div>
+          ))}
+          <button className="btn" onClick={()=>addBinaryItem(idx)}>Thêm phát biểu</button>
+        </div>
+      )}
+
+      {qObj.type === "dragdrop" && dragData && (
+        <div className="options-box dragdrop-box">
+          <div className="drag-columns">
+            <div className="drag-section">
+              <div className="opts-title">Ngân hàng đáp án</div>
+              {dragData.bank.map((opt, optIdx) => (
+                <div key={opt.id || optIdx} className="drag-bank-row">
+                  <div className="opt-id">{opt.id}</div>
+                  <input
+                    value={opt.text}
+                    placeholder={`Đáp án ${opt.id}`}
+                    onChange={(e)=>updateDragBankOption(idx, optIdx, e.target.value)}
+                  />
+                  <button
+                    className="btn btn-light"
+                    onClick={()=>removeDragBankOption(idx, optIdx)}
+                    disabled={dragData.bank.length <= 1}
+                    title="Xóa đáp án"
+                  >
+                    −
+                  </button>
+                </div>
+              ))}
+              <button className="btn" onClick={()=>addDragBankOption(idx)}>Thêm đáp án</button>
+            </div>
+
+            <div className="drag-section">
+              <div className="opts-title">Ô kéo thả</div>
+              {dragData.targets.map((target, targetIdx) => (
+                <div key={target.id || targetIdx} className="drag-target-row">
+                  <input
+                    value={target.label}
+                    placeholder={`Nhãn ô ${targetIdx + 1}`}
+                    onChange={(e)=>updateDragTarget(idx, targetIdx, { label: e.target.value })}
+                  />
+                  <select
+                    value={dragData.correctMapping[target.id] || ""}
+                    onChange={(e)=>updateDragTargetMapping(idx, target.id, e.target.value)}
+                  >
+                    <option value="">-- Chưa chọn --</option>
+                    {dragData.bank.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.text || opt.id}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-light"
+                    onClick={()=>removeDragTarget(idx, targetIdx)}
+                    disabled={dragData.targets.length <= 1}
+                    title="Xóa ô"
+                  >
+                    −
+                  </button>
+                </div>
+              ))}
+              <button className="btn" onClick={()=>addDragTarget(idx)}>Thêm ô mới</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
 
 export default function AdminPage() {
   const [quizId, setQuizId] = useState("");
@@ -97,7 +412,7 @@ export default function AdminPage() {
       setSavedMsg(`Saved: ${json.message || "OK"}`);
       fetchQuizList();
     } catch (e) {
-      setErr(e.message);
+                updateQuestion(idx, { type: newType });
     } finally {
       setLoading(false);
     }
@@ -178,8 +493,7 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Upload lỗi');
       // json.url is like /api/images/:id — form absolute URL to load from backend
-      const origin = window.location.origin.replace(/:\d+$/, ':4000');
-      const url = json.url.startsWith('/') ? `${origin}${json.url}` : json.url;
+      const url = json.url.startsWith('/') ? `${API_URL}${json.url}` : json.url;
       // set the option text to server URL and update preview to server URL
       updateOptionText(qIdx, optIdx, url);
       setLocalPreviews((p) => {
@@ -204,6 +518,215 @@ export default function AdminPage() {
     copy.questions[qIdx] = ques;
     return copy;
   });
+
+  const toPlainMapping = (mapping) => {
+    if (!mapping) return {};
+    if (mapping instanceof Map) {
+      return Object.fromEntries(mapping.entries());
+    }
+    if (typeof mapping === "object") {
+      return { ...mapping };
+    }
+    return {};
+  };
+
+  const normalizeBinaryQuestion = (question = {}) => {
+    const columns = Array.isArray(question.columns) && question.columns.length === 2
+      ? [...question.columns]
+      : ["Có", "Không"];
+
+    const items = Array.isArray(question.items) && question.items.length
+      ? question.items.map((item, idx) => ({
+          id: item.id || `item${idx + 1}`,
+          text: item.text || "",
+          correctColumn: columns.includes(item.correctColumn) ? item.correctColumn : columns[0]
+        }))
+      : [{ id: "item1", text: "", correctColumn: columns[0] }];
+
+    return { columns, items };
+  };
+
+  const normalizeDragQuestion = (question = {}) => {
+    const bank = Array.isArray(question.bank) && question.bank.length
+      ? question.bank.map((opt, idx) => ({ id: opt.id || `opt${idx + 1}`, text: opt.text || "" }))
+      : [{ id: "opt1", text: "Đáp án 1" }];
+
+    const targets = Array.isArray(question.targets) && question.targets.length
+      ? question.targets.map((target, idx) => ({ id: target.id || `target${idx + 1}`, label: target.label || `Ô ${idx + 1}` }))
+      : [{ id: "target1", label: "Ô 1" }];
+
+    const mapping = toPlainMapping(question.correctMapping);
+    targets.forEach((target) => {
+      if (!mapping[target.id]) {
+        mapping[target.id] = bank[0]?.id || "";
+      }
+    });
+
+    return { bank, targets, correctMapping: mapping };
+  };
+
+  const updateBinaryColumn = (qIdx, colIdx, value) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeBinaryQuestion(question);
+    const columns = [...normalized.columns];
+    const prevLabel = columns[colIdx] || "";
+    columns[colIdx] = value;
+    question.columns = columns;
+    question.items = normalized.items.map((item) =>
+      item.correctColumn === prevLabel ? { ...item, correctColumn: value } : { ...item }
+    );
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const addBinaryItem = (qIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeBinaryQuestion(question);
+    const nextId = `item${normalized.items.length + 1}`;
+    const defaultColumn = normalized.columns[0];
+    question.items = [...normalized.items, { id: nextId, text: "", correctColumn: defaultColumn }];
+    question.columns = normalized.columns;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const updateBinaryItem = (qIdx, itemIdx, patch) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeBinaryQuestion(question);
+    const items = [...normalized.items];
+    items[itemIdx] = { ...items[itemIdx], ...patch };
+    question.items = items;
+    question.columns = normalized.columns;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const removeBinaryItem = (qIdx, itemIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeBinaryQuestion(question);
+    const items = [...normalized.items];
+    if (items.length <= 1) return copy;
+    items.splice(itemIdx, 1);
+    question.items = items;
+    question.columns = normalized.columns;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const addDragBankOption = (qIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const bank = [...normalized.bank, { id: `opt${normalized.bank.length + 1}`, text: "" }];
+    question.bank = bank;
+    question.targets = normalized.targets;
+    question.correctMapping = normalized.correctMapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const updateDragBankOption = (qIdx, optIdx, text) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const bank = [...normalized.bank];
+    bank[optIdx] = { ...bank[optIdx], text };
+    question.bank = bank;
+    question.targets = normalized.targets;
+    question.correctMapping = normalized.correctMapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const removeDragBankOption = (qIdx, optIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const bank = [...normalized.bank];
+    if (bank.length <= 1) return copy;
+    const [removed] = bank.splice(optIdx, 1);
+    const mapping = { ...normalized.correctMapping };
+    Object.keys(mapping).forEach((targetId) => {
+      if (mapping[targetId] === removed.id) {
+        mapping[targetId] = bank[0]?.id || "";
+      }
+    });
+    question.bank = bank;
+    question.targets = normalized.targets;
+    question.correctMapping = mapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const addDragTarget = (qIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const nextId = `target${normalized.targets.length + 1}`;
+    const targets = [...normalized.targets, { id: nextId, label: `Ô ${normalized.targets.length + 1}` }];
+    const mapping = { ...normalized.correctMapping, [nextId]: normalized.bank[0]?.id || "" };
+    question.targets = targets;
+    question.bank = normalized.bank;
+    question.correctMapping = mapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const updateDragTarget = (qIdx, targetIdx, patch) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const targets = [...normalized.targets];
+    targets[targetIdx] = { ...targets[targetIdx], ...patch };
+    question.targets = targets;
+    question.bank = normalized.bank;
+    question.correctMapping = normalized.correctMapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const updateDragTargetMapping = (qIdx, targetId, optionId) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    const mapping = { ...normalized.correctMapping, [targetId]: optionId };
+    question.correctMapping = mapping;
+    question.bank = normalized.bank;
+    question.targets = normalized.targets;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
+
+  const removeDragTarget = (qIdx, targetIdx) => setQuiz((q) => {
+    const copy = { ...(q || {}) };
+    copy.questions = copy.questions ? [...copy.questions] : [];
+    const question = { ...(copy.questions[qIdx] || {}) };
+    const normalized = normalizeDragQuestion(question);
+    if (normalized.targets.length <= 1) return copy;
+    const targets = [...normalized.targets];
+    const [removed] = targets.splice(targetIdx, 1);
+    const mapping = { ...normalized.correctMapping };
+    delete mapping[removed.id];
+    question.targets = targets;
+    question.bank = normalized.bank;
+    question.correctMapping = mapping;
+    copy.questions[qIdx] = question;
+    return copy;
+  });
   // keep preview in sync when user types/pastes a URL
   const updateOptionTextAndPreview = (qIdx, optIdx, text) => {
     updateOptionText(qIdx, optIdx, text);
@@ -219,173 +742,6 @@ export default function AdminPage() {
     copy.questions[qIdx] = ques;
     return copy;
   });
-
-  // UI for each question
-  const QuestionEditor = ({ qObj, idx }) => {
-    if (!qObj) return null;
-    return (
-      <div className="q-editor">
-        <div className="q-row">
-          <label>ID</label>
-          <input value={qObj.id} onChange={(e)=>updateQuestion(idx, { id: e.target.value })} />
-          <label>Type</label>
-          <select value={qObj.type} onChange={(e)=>{
-            const newType = e.target.value;
-            if (newType === 'image_grid') {
-              // ensure 4 options for image grid
-              const opts = [
-                { id: 'A', text: '' },
-                { id: 'B', text: '' },
-                { id: 'C', text: '' },
-                { id: 'D', text: '' },
-              ];
-              updateQuestion(idx, { type: newType, options: opts, correct: 'A' });
-            } else {
-              updateQuestion(idx, { type: newType });
-            }
-          }}>
-            <option value="single">Single</option>
-            <option value="multi">Multi</option>
-            <option value="binary">Binary (2-col)</option>
-            <option value="dragdrop">DragDrop</option>
-            <option value="image_single">Image Single</option>
-            <option value="image_grid">Image Grid (4 images)</option>
-          </select>
-          <button className="btn btn-light" onClick={()=>removeQuestion(idx)}>Xóa câu</button>
-        </div>
-
-        <div className="q-row">
-          <label>Prompt</label>
-          <input value={qObj.prompt || ""} onChange={(e)=>updateQuestion(idx, { prompt: e.target.value })} style={{flex:1}} />
-        </div>
-
-        {qObj.type === "single" && (
-          <div className="options-box">
-            <div className="opts-title">Các lựa chọn</div>
-            { (qObj.options || []).map((o, oi) => (
-              <div key={oi} className="opt-row">
-                <div className="opt-id">{o.id}</div>
-                <input value={o.text} onChange={(e)=>updateOptionText(idx, oi, e.target.value)} />
-                <label>Đúng?</label>
-                <input type="radio" name={`correct-${idx}`} checked={qObj.correct === o.id} onChange={()=>updateQuestion(idx, { correct: o.id })} />
-                <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
-              </div>
-            )) }
-            <div>
-              <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
-            </div>
-          </div>
-        )}
-
-        {qObj.type === "image_single" && (
-          <div className="options-box">
-            <div className="opts-title">Các hình ảnh</div>
-            {(qObj.options || []).map((o, oi) => {
-              const key = `${idx}-${oi}`;
-              const previewSrc = localPreviews[key] || o.text || "";
-              const hasLocalPreview = Object.prototype.hasOwnProperty.call(localPreviews, key);
-              return (
-                <div key={oi} className="image-option">
-                  <div className="image-option-head">
-                    <div className="opt-id">{o.id}</div>
-                    <input
-                      value={o.text}
-                      placeholder={`URL hình ${o.id}`}
-                      onChange={(e)=>updateOptionTextAndPreview(idx, oi, e.target.value)}
-                    />
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e)=>uploadImageFile(e.target.files?.[0], idx, oi)}
-                  />
-                  <div className="img-preview">
-                    {previewSrc ? (
-                      <img
-                        src={previewSrc}
-                        alt={o.id}
-                        onError={() => {
-                          if (hasLocalPreview) {
-                            setLocalPreviews((p) => {
-                              if (!Object.prototype.hasOwnProperty.call(p, key)) return p;
-                              const next = { ...p };
-                              delete next[key];
-                              return next;
-                            });
-                          }
-                          console.warn('Không thể tải preview ảnh', previewSrc);
-                        }}
-                      />
-                    ) : (
-                      <span className="empty">Preview</span>
-                    )}
-                  </div>
-                  <div className="image-option-meta">
-                    <label>Đúng?</label>
-                    <input
-                      type="radio"
-                      name={`correct-img-single-${idx}`}
-                      checked={qObj.correct === o.id}
-                      onChange={()=>updateQuestion(idx, { correct: o.id })}
-                    />
-                    <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
-                  </div>
-                </div>
-              );
-            })}
-            <div>
-              <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
-            </div>
-          </div>
-        )}
-
-        {qObj.type === "multi" && (
-          <div className="options-box">
-            <div className="opts-title">Các lựa chọn (chọn nhiều)</div>
-            { (qObj.options || []).map((o, oi) => (
-              <div key={oi} className="opt-row">
-                <div className="opt-id">{o.id}</div>
-                <input value={o.text} onChange={(e)=>updateOptionText(idx, oi, e.target.value)} />
-                <label>Đúng?</label>
-                <input type="checkbox" checked={(qObj.correct || []).includes(o.id)} onChange={(e)=>{
-                  const cur = new Set(qObj.correct || []);
-                  if (e.target.checked) cur.add(o.id); else cur.delete(o.id);
-                  updateQuestion(idx, { correct: Array.from(cur) });
-                }} />
-                <button className="btn btn-light" onClick={()=>removeOption(idx, oi)}>−</button>
-              </div>
-            )) }
-            <div>
-              <button className="btn" onClick={()=>addOption(idx)}>Thêm đáp án</button>
-            </div>
-          </div>
-        )}
-
-        {qObj.type === "image_grid" && (
-          <div className="options-box">
-            <div className="opts-title">4 hình ảnh (nhập URL)</div>
-            <div className="image-grid">
-              { (qObj.options || []).map((o, oi) => (
-                <div key={oi} className="image-item">
-                  <div className="opt-id">{o.id}</div>
-                  <input value={o.text} placeholder={`URL hình ${o.id}`} onChange={(e)=>updateOptionTextAndPreview(idx, oi, e.target.value)} />
-                  <input type="file" accept="image/*" onChange={(e)=>uploadImageFile(e.target.files?.[0], idx, oi)} />
-                  <div className="img-preview">{(localPreviews[`${idx}-${oi}`] || o.text) ? <img src={localPreviews[`${idx}-${oi}`] || o.text} alt={o.id} /> : <span className="empty">Preview</span>}</div>
-                  <label>Đúng?</label>
-                  <input type="radio" name={`correct-img-${idx}`} checked={qObj.correct === o.id} onChange={()=>updateQuestion(idx, { correct: o.id })} />
-                </div>
-              )) }
-            </div>
-          </div>
-        )}
-
-        {/* For complex types show a small hint and fallback to raw editing */}
-        {(qObj.type === "binary" || qObj.type === "dragdrop") && (
-          <div className="hint">Loại câu này hơi phức tạp — chuyển sang chế độ Raw JSON để chỉnh chi tiết nếu cần.</div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="admin-wrap">
@@ -474,8 +830,33 @@ export default function AdminPage() {
               </div>
 
               {quiz.questions && quiz.questions.map((qObj, i) => (
-                <div key={i} className="question-item">
-                  <QuestionEditor qObj={qObj} idx={i} />
+                <div key={qObj.id || i} className="question-item">
+                  <QuestionEditor 
+                    qObj={qObj} 
+                    idx={i}
+                    updateQuestion={updateQuestion}
+                    removeQuestion={removeQuestion}
+                    addOption={addOption}
+                    updateOptionText={updateOptionText}
+                    updateOptionTextAndPreview={updateOptionTextAndPreview}
+                    uploadImageFile={uploadImageFile}
+                    removeOption={removeOption}
+                    normalizeBinaryQuestion={normalizeBinaryQuestion}
+                    normalizeDragQuestion={normalizeDragQuestion}
+                    updateBinaryColumn={updateBinaryColumn}
+                    addBinaryItem={addBinaryItem}
+                    updateBinaryItem={updateBinaryItem}
+                    removeBinaryItem={removeBinaryItem}
+                    addDragBankOption={addDragBankOption}
+                    updateDragBankOption={updateDragBankOption}
+                    removeDragBankOption={removeDragBankOption}
+                    addDragTarget={addDragTarget}
+                    updateDragTarget={updateDragTarget}
+                    updateDragTargetMapping={updateDragTargetMapping}
+                    removeDragTarget={removeDragTarget}
+                    localPreviews={localPreviews}
+                    setLocalPreviews={setLocalPreviews}
+                  />
                 </div>
               ))}
             </div>

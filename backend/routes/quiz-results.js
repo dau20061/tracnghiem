@@ -39,6 +39,94 @@ const requireAdminKey = (req, res, next) => {
   return next();
 };
 
+// ==== Helpers ====
+const gradeFromPercentage = (percentage = 0) => {
+  if (percentage >= 90) return "A";
+  if (percentage >= 80) return "B";
+  if (percentage >= 70) return "C";
+  if (percentage >= 60) return "D";
+  return "F";
+};
+
+const formatDuration = (seconds = 0) => {
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(seconds, 0) : 0;
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
+const normalizeCorrectMapping = (mapping) => {
+  if (!mapping) return null;
+  if (Array.isArray(mapping)) return mapping;
+  if (mapping instanceof Map) {
+    return Object.fromEntries(mapping.entries());
+  }
+  if (typeof mapping === "object") {
+    return Object.keys(mapping).reduce((acc, key) => {
+      acc[key] = mapping[key];
+      return acc;
+    }, {});
+  }
+  return null;
+};
+
+const sanitizeQuestion = (question) => {
+  if (!question) return null;
+
+  return {
+    id: question.id,
+    type: question.type,
+    prompt: question.prompt,
+    image: question.image || null,
+    options: question.options || [],
+    columns: question.columns || [],
+    items: question.items || [],
+    targets: question.targets || [],
+    bank: question.bank || [],
+    correct: question.correct,
+    correctMapping: normalizeCorrectMapping(question.correctMapping),
+    minCorrect: question.minCorrect,
+    maxCorrect: question.maxCorrect,
+  };
+};
+
+const buildDetailedResult = async (resultData) => {
+  if (!resultData) return null;
+
+  const plainResult = resultData.toObject ? resultData.toObject() : resultData;
+  const quiz = await Quiz.findById(plainResult.quizId).lean();
+  const questionMap = new Map();
+
+  if (quiz?.questions?.length) {
+    quiz.questions.forEach((question) => {
+      questionMap.set(question.id, sanitizeQuestion(question));
+    });
+  }
+
+  return {
+    ...plainResult,
+    id: plainResult._id || plainResult.id,
+    quizMeta: quiz
+      ? {
+          id: quiz._id,
+          title: quiz.title,
+          questionCount: quiz.questions?.length || 0,
+          settings: quiz.settings || {},
+        }
+      : null,
+    grade: gradeFromPercentage(plainResult.percentage),
+    formattedTime: formatDuration(plainResult.totalTimeSpent),
+    answers: (plainResult.answers || []).map((answer) => ({
+      questionId: answer.questionId,
+      userAnswer: answer.userAnswer,
+      isCorrect: answer.isCorrect,
+      timeSpent: answer.timeSpent || 0,
+      formattedTime: formatDuration(answer.timeSpent || 0),
+      question: questionMap.get(answer.questionId) || null,
+    })),
+  };
+};
+
 // Lưu kết quả làm bài
 router.post("/submit", requireAuth, async (req, res) => {
   try {
@@ -146,10 +234,7 @@ router.get("/history", requireAuth, async (req, res) => {
       score: result.score,
       totalQuestions: result.totalQuestions,
       percentage: result.percentage,
-      grade: result.percentage >= 90 ? 'A' : 
-             result.percentage >= 80 ? 'B' : 
-             result.percentage >= 70 ? 'C' : 
-             result.percentage >= 60 ? 'D' : 'F',
+      grade: gradeFromPercentage(result.percentage),
       totalTimeSpent: result.totalTimeSpent,
       formattedTime: `${Math.floor(result.totalTimeSpent / 60)}:${(result.totalTimeSpent % 60).toString().padStart(2, '0')}`,
       completedAt: result.completedAt,
@@ -236,20 +321,7 @@ router.get("/result/:resultId", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy kết quả" });
     }
 
-    // Format chi tiết câu trả lời
-    const detailedResult = {
-      ...result,
-      grade: result.percentage >= 90 ? 'A' : 
-             result.percentage >= 80 ? 'B' : 
-             result.percentage >= 70 ? 'C' : 
-             result.percentage >= 60 ? 'D' : 'F',
-      formattedTime: `${Math.floor(result.totalTimeSpent / 60)}:${(result.totalTimeSpent % 60).toString().padStart(2, '0')}`,
-      answers: result.answers.map(answer => ({
-        ...answer,
-        formattedTime: `${Math.floor(answer.timeSpent / 60)}:${(answer.timeSpent % 60).toString().padStart(2, '0')}`
-      }))
-    };
-
+    const detailedResult = await buildDetailedResult(result);
     res.json(detailedResult);
   } catch (error) {
     console.error("Get quiz result detail error:", error);
@@ -339,6 +411,99 @@ router.get("/stats/period", requireAuth, async (req, res) => {
 
 // ==== ADMIN APIs ====
 
+// Lấy chi tiết một kết quả bất kỳ (admin)
+router.get("/admin/result/:resultId", requireAdminKey, async (req, res) => {
+  try {
+    const result = await QuizResult.findById(req.params.resultId).lean();
+    if (!result) {
+      return res.status(404).json({ message: "Không tìm thấy kết quả" });
+    }
+
+    const user = await User.findById(result.userId).lean();
+    const detailedResult = await buildDetailedResult(result);
+
+    res.json({
+      result: detailedResult,
+      user: user
+        ? {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error("Admin get quiz result detail error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Cập nhật câu trả lời của một kết quả (admin)
+router.patch("/admin/result/:resultId", requireAdminKey, async (req, res) => {
+  try {
+    const { answers, totalTimeSpent, status } = req.body;
+
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ message: "Danh sách câu trả lời không hợp lệ" });
+    }
+
+    const invalidAnswer = answers.some(
+      (ans) => typeof ans.questionId !== "string" || typeof ans.isCorrect !== "boolean" || typeof ans.userAnswer === "undefined"
+    );
+
+    if (invalidAnswer) {
+      return res.status(400).json({ message: "Câu trả lời phải bao gồm questionId, userAnswer và isCorrect" });
+    }
+
+    const result = await QuizResult.findById(req.params.resultId);
+    if (!result) {
+      return res.status(404).json({ message: "Không tìm thấy kết quả" });
+    }
+
+    if (answers.length !== result.answers.length) {
+      return res.status(400).json({ message: "Số lượng câu hỏi không khớp với kết quả gốc" });
+    }
+
+    const originalQuestionIds = new Set(result.answers.map((answer) => answer.questionId));
+    const hasUnknownQuestion = answers.some((answer) => !originalQuestionIds.has(answer.questionId));
+
+    if (hasUnknownQuestion) {
+      return res.status(400).json({ message: "Câu trả lời chứa questionId không khớp" });
+    }
+
+    result.answers = answers.map((answer) => ({
+      questionId: answer.questionId,
+      userAnswer: answer.userAnswer,
+      isCorrect: answer.isCorrect,
+      timeSpent: typeof answer.timeSpent === "number" && answer.timeSpent >= 0 ? answer.timeSpent : 0,
+    }));
+
+    const score = result.answers.filter((answer) => answer.isCorrect).length;
+    result.score = score;
+    result.totalQuestions = result.answers.length;
+    const questionCount = result.totalQuestions || 1;
+    result.percentage = Math.round((score / questionCount) * 100);
+
+    if (typeof totalTimeSpent === "number" && totalTimeSpent >= 0) {
+      result.totalTimeSpent = totalTimeSpent;
+    } else {
+      result.totalTimeSpent = result.answers.reduce((sum, answer) => sum + (answer.timeSpent || 0), 0);
+    }
+
+    if (typeof status === "string" && ["completed", "abandoned"].includes(status)) {
+      result.status = status;
+    }
+
+    await result.save();
+
+    const detailedResult = await buildDetailedResult(result);
+    res.json({ message: "Đã cập nhật kết quả", result: detailedResult });
+  } catch (error) {
+    console.error("Admin update quiz result error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
 // Lấy lịch sử làm bài của một user cụ thể (dành cho admin)
 router.get("/admin/:userId", requireAdminKey, async (req, res) => {
   try {
@@ -392,10 +557,7 @@ router.get("/admin/:userId", requireAdminKey, async (req, res) => {
         score: result.score,
         totalQuestions: result.totalQuestions,
         percentage: result.percentage,
-        grade: result.percentage >= 90 ? 'A' : 
-               result.percentage >= 80 ? 'B' : 
-               result.percentage >= 70 ? 'C' : 
-               result.percentage >= 60 ? 'D' : 'F',
+        grade: gradeFromPercentage(result.percentage),
         timeSpent: result.totalTimeSpent,
         completedAt: result.completedAt,
         status: result.status

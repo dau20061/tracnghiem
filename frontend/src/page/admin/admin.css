@@ -219,3 +219,87 @@
 .image-option input[type="file"] { font-size:12px }
 .image-option-meta { display:flex; align-items:center; gap:8px; justify-content:flex-start }
 
+.binary-columns {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+}
+
+.binary-columns label {
+	display: flex;
+	flex-direction: column;
+	font-size: 13px;
+	color: #475569;
+	gap: 4px;
+}
+
+.binary-columns input {
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 1px solid #e6eef6;
+}
+
+.binary-item-row {
+	display: grid;
+	grid-template-columns: 40px 1fr 180px 50px;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.binary-item-row input,
+.binary-item-row select {
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 1px solid #e6eef6;
+}
+
+.dragdrop-box {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.drag-columns {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 16px;
+}
+
+.drag-section {
+	background: #f8fafc;
+	border: 1px solid #e6eef6;
+	border-radius: 10px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.drag-bank-row,
+.drag-target-row {
+	display: grid;
+	gap: 8px;
+	align-items: center;
+}
+
+.drag-bank-row {
+	grid-template-columns: 50px 1fr 50px;
+}
+
+.drag-target-row {
+	grid-template-columns: 1fr 200px 50px;
+}
+
+.drag-bank-row input,
+.drag-target-row input,
+.drag-target-row select {
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 1px solid #e6eef6;
+}
+
+.drag-target-row select {
+	background: #fff;
+}
+

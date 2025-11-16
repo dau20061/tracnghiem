@@ -3,7 +3,6 @@ import { API_URL } from '../../config/api';
 
 import { useNavigate } from 'react-router-dom';
 import './QuizHistory.css';
-
 const QuizHistory = () => {
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState(null);
@@ -12,7 +11,108 @@ const QuizHistory = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [activeTab, setActiveTab] = useState('history');
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
   const navigate = useNavigate();
+
+  const getOptionLabel = (question, optionId) => {
+    if (!question || !optionId) return optionId || '—';
+    const found = question.options?.find((opt) => opt.id === optionId);
+    return found ? `${found.id}. ${found.text}` : optionId;
+  };
+
+  const formatBinaryColumn = (question, ids = []) => {
+    if (!Array.isArray(ids) || ids.length === 0) return 'Không có';
+    return ids
+      .map((id) => question.items?.find((item) => item.id === id)?.text || id)
+      .join(', ');
+  };
+
+  const formatDragOption = (question, optionId) => {
+    if (!question || !optionId) return 'Chưa chọn';
+    const found = question.bank?.find((item) => item.id === optionId);
+    return found ? found.text : optionId;
+  };
+
+  const renderAnswerValue = (question, value, emptyLabel = '—') => {
+    if (!question) {
+      if (value === null || typeof value === 'undefined') {
+        return <span className="muted">{emptyLabel}</span>;
+      }
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return <span>{String(value)}</span>;
+      }
+      return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+    }
+
+    switch (question.type) {
+      case 'single':
+      case 'image_single':
+      case 'image_grid':
+        if (!value) return <span className="muted">{emptyLabel}</span>;
+        return <span>{getOptionLabel(question, value)}</span>;
+      case 'multi':
+        if (!Array.isArray(value) || value.length === 0) {
+          return <span className="muted">{emptyLabel}</span>;
+        }
+        return (
+          <ul className="answer-list">
+            {value.map((id) => (
+              <li key={id}>{getOptionLabel(question, id)}</li>
+            ))}
+          </ul>
+        );
+      case 'binary':
+        if (!value) return <span className="muted">{emptyLabel}</span>;
+        return (
+          <div className="binary-answer-block">
+            <div><strong>{question.columns?.[0] || 'Cột 1'}:</strong> {formatBinaryColumn(question, value.left)}</div>
+            <div><strong>{question.columns?.[1] || 'Cột 2'}:</strong> {formatBinaryColumn(question, value.right)}</div>
+          </div>
+        );
+      case 'dragdrop':
+        if (!value || !question.targets?.length) {
+          return <span className="muted">{emptyLabel}</span>;
+        }
+        return (
+          <div className="dragdrop-answer-block">
+            {question.targets.map((target) => (
+              <div key={target.id}>
+                <strong>{target.label}:</strong> {formatDragOption(question, value[target.id])}
+              </div>
+            ))}
+          </div>
+        );
+      default:
+        if (value === null || typeof value === 'undefined' || value === '') {
+          return <span className="muted">{emptyLabel}</span>;
+        }
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          return <span>{String(value)}</span>;
+        }
+        return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+    }
+  };
+
+  const getCorrectValue = (question) => {
+    if (!question) return null;
+    switch (question.type) {
+      case 'binary': {
+        const leftIds = question.items?.filter((item) => item.correctColumn === question.columns?.[0]).map((item) => item.id) || [];
+        const rightIds = question.items?.filter((item) => item.correctColumn === question.columns?.[1]).map((item) => item.id) || [];
+        return { left: leftIds, right: rightIds };
+      }
+      case 'dragdrop':
+        return question.correctMapping || null;
+      default:
+        return question.correct ?? null;
+    }
+  };
+
+  const renderUserAnswer = (answer) => renderAnswerValue(answer.question, answer.userAnswer, 'Chưa trả lời');
+  const renderCorrectAnswer = (question) => renderAnswerValue(question, getCorrectValue(question), 'Không có đáp án tham chiếu');
 
   // Lấy lịch sử làm bài
   const fetchHistory = async (page = 1) => {
@@ -110,9 +210,44 @@ const QuizHistory = () => {
   };
 
   // Xem chi tiết kết quả
-  const viewDetail = (resultId) => {
-    // Có thể tạo modal hoặc trang chi tiết riêng
-    console.log('View detail for result:', resultId);
+  const viewDetail = async (resultId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    setDetailModalOpen(true);
+    setDetailLoading(true);
+    setDetailError('');
+    setSelectedResult(null);
+
+    try {
+      const response = await fetch(`${API_URL}/api/quiz-results/result/${resultId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Không thể tải chi tiết kết quả');
+      }
+
+      const data = await response.json();
+      setSelectedResult(data);
+    } catch (err) {
+      console.error('Fetch result detail error:', err);
+      setDetailError(err.message || 'Không thể tải chi tiết kết quả');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setDetailModalOpen(false);
+    setSelectedResult(null);
+    setDetailError('');
   };
 
   if (loading) {
@@ -352,6 +487,87 @@ const QuizHistory = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {detailModalOpen && (
+        <div className="quiz-detail-modal" role="dialog" aria-modal="true">
+          <div className="detail-dialog">
+            <button className="modal-close" onClick={closeDetailModal} aria-label="Đóng">
+              ×
+            </button>
+
+            {detailLoading && (
+              <div className="modal-loading">
+                <div className="spinner" />
+                <p>Đang tải chi tiết...</p>
+              </div>
+            )}
+
+            {!detailLoading && detailError && (
+              <div className="modal-error">{detailError}</div>
+            )}
+
+            {!detailLoading && !detailError && selectedResult && (
+              <>
+                <div className="detail-header">
+                  <h2>{selectedResult.quizMeta?.title || selectedResult.quizTitle}</h2>
+                  <p>Mã bài: {selectedResult.quizId}</p>
+                </div>
+
+                <div className="detail-summary-grid">
+                  <div className="summary-card">
+                    <span className="summary-label">Điểm</span>
+                    <strong>{selectedResult.score}/{selectedResult.totalQuestions}</strong>
+                  </div>
+                  <div className="summary-card">
+                    <span className="summary-label">Tỷ lệ đúng</span>
+                    <strong>{selectedResult.percentage}% • {selectedResult.grade}</strong>
+                  </div>
+                  <div className="summary-card">
+                    <span className="summary-label">Thời gian</span>
+                    <strong>{selectedResult.formattedTime}</strong>
+                  </div>
+                  <div className="summary-card">
+                    <span className="summary-label">Hoàn thành</span>
+                    <strong>{formatDate(selectedResult.completedAt)}</strong>
+                  </div>
+                </div>
+
+                <div className="question-detail-list">
+                  {selectedResult.answers?.map((answer, index) => (
+                    <div
+                      key={`${answer.questionId}-${index}`}
+                      className={`question-detail-card ${answer.isCorrect ? 'correct' : 'incorrect'}`}
+                    >
+                      <div className="question-header">
+                        <div>
+                          <span className="question-index">Câu {index + 1}</span>
+                        </div>
+                        <span className={`answer-status ${answer.isCorrect ? 'correct' : 'incorrect'}`}>
+                          {answer.isCorrect ? 'Đúng' : 'Sai'}
+                        </span>
+                      </div>
+                      <p className="question-prompt">{answer.question?.prompt || 'Câu hỏi không còn khả dụng'}</p>
+                      <div className="question-meta-row">
+                        <span>Loại: {answer.question?.type || 'N/A'}</span>
+                        <span>Thời gian: {answer.formattedTime}</span>
+                      </div>
+                      <div className="answer-block">
+                        <div>
+                          <div className="answer-title">Trả lời của bạn</div>
+                          {renderUserAnswer(answer)}
+                        </div>
+                        <div>
+                          <div className="answer-title">Đáp án đúng</div>
+                          {renderCorrectAnswer(answer.question)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

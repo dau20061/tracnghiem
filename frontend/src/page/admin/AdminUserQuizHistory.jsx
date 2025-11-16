@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';import { API_URL } from '../../config/api';
+import React, { useState, useEffect } from 'react';
+import { API_URL } from '../../config/api';
 
 import { useParams, useNavigate } from 'react-router-dom';
 import './AdminUserQuizHistory.css';
@@ -15,6 +16,14 @@ const AdminUserQuizHistory = () => {
   const [notice, setNotice] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [detailSuccess, setDetailSuccess] = useState('');
+  const [editableAnswers, setEditableAnswers] = useState([]);
+  const [editingEnabled, setEditingEnabled] = useState(false);
+  const [savingDetail, setSavingDetail] = useState(false);
 
   // Fetch lịch sử làm bài của user
   const fetchUserHistory = async (page = 1) => {
@@ -104,6 +113,122 @@ const AdminUserQuizHistory = () => {
     }
   };
 
+  const openResultDetail = async (resultId) => {
+    setDetailModalOpen(true);
+    setDetailLoading(true);
+    setDetailError('');
+    setDetailSuccess('');
+    setEditingEnabled(false);
+    setEditableAnswers([]);
+
+    try {
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/result/${resultId}`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || 'Không thể tải chi tiết bài làm');
+      }
+
+      if (payload.result) {
+        setSelectedResult(payload.result);
+        setEditableAnswers(initializeEditableAnswers(payload.result.answers || []));
+      } else {
+        throw new Error('Dữ liệu kết quả không hợp lệ');
+      }
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setDetailModalOpen(false);
+    setSelectedResult(null);
+    setEditableAnswers([]);
+    setEditingEnabled(false);
+    setDetailError('');
+    setDetailSuccess('');
+  };
+
+  const toggleEditing = () => {
+    if (!selectedResult) return;
+    if (editingEnabled) {
+      setEditableAnswers(initializeEditableAnswers(selectedResult.answers || []));
+      setEditingEnabled(false);
+      setDetailError('');
+    } else {
+      setEditingEnabled(true);
+      setDetailSuccess('');
+    }
+  };
+
+  const updateEditableAnswer = (index, field, value) => {
+    setEditableAnswers((prev) => prev.map((answer, i) => (i === index ? { ...answer, [field]: value } : answer)));
+  };
+
+  const saveEditedAnswers = async () => {
+    if (!selectedResult || !editableAnswers.length) return;
+    setSavingDetail(true);
+    setDetailError('');
+    setDetailSuccess('');
+
+    try {
+      const payloadAnswers = editableAnswers.map((answer) => {
+        let parsedAnswer = answer.userAnswerText;
+        if (typeof parsedAnswer === 'string') {
+          const trimmed = parsedAnswer.trim();
+          if (trimmed.length) {
+            try {
+              parsedAnswer = JSON.parse(trimmed);
+            } catch {
+              parsedAnswer = parsedAnswer;
+            }
+          } else {
+            parsedAnswer = '';
+          }
+        }
+
+        return {
+          questionId: answer.questionId,
+          userAnswer: parsedAnswer,
+          isCorrect: !!answer.isCorrect,
+          timeSpent: Number(answer.timeSpent) >= 0 ? Number(answer.timeSpent) : 0
+        };
+      });
+
+      const resultId = selectedResult.id || selectedResult._id;
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/result/${resultId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ answers: payloadAnswers })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || 'Không thể lưu chỉnh sửa');
+      }
+
+      if (payload.result) {
+        setSelectedResult(payload.result);
+        setEditableAnswers(initializeEditableAnswers(payload.result.answers || []));
+        setEditingEnabled(false);
+        setDetailSuccess('Đã cập nhật kết quả làm bài.');
+        await fetchUserHistory(currentPage);
+      }
+    } catch (err) {
+      setDetailError(err.message || 'Có lỗi xảy ra khi lưu chỉnh sửa');
+    } finally {
+      setSavingDetail(false);
+    }
+  };
+
   // Format thời gian
   const formatTime = (seconds) => {
     if (!seconds) return '0:00';
@@ -128,6 +253,51 @@ const AdminUserQuizHistory = () => {
       default: return 'grade-f';
     }
   };
+
+  const renderAnswerSnippet = (value) => {
+    if (value === null || typeof value === 'undefined' || value === '') {
+      return <span className="muted">Không có dữ liệu</span>;
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return <span className="answer-snippet">{String(value)}</span>;
+    }
+    return <pre className="answer-json">{JSON.stringify(value, null, 2)}</pre>;
+  };
+
+  const getCorrectReference = (question) => {
+    if (!question) return null;
+    if (question.type === 'binary') {
+      const result = {};
+      if (Array.isArray(question.columns)) {
+        question.columns.forEach((column) => {
+          result[column] = question.items?.filter((item) => item.correctColumn === column).map((item) => item.text) || [];
+        });
+        return result;
+      }
+      return question.items?.reduce((acc, item) => {
+        const key = item.correctColumn || 'Đúng';
+        acc[key] = acc[key] || [];
+        acc[key].push(item.text);
+        return acc;
+      }, {}) || null;
+    }
+    if (question.type === 'dragdrop') {
+      return question.correctMapping || null;
+    }
+    return question.correct ?? null;
+  };
+
+  const initializeEditableAnswers = (answers = []) => (
+    answers.map((answer) => ({
+      questionId: answer.questionId,
+      userAnswerText:
+        typeof answer.userAnswer === 'string'
+          ? answer.userAnswer
+          : JSON.stringify(answer.userAnswer ?? '', null, 2),
+      isCorrect: answer.isCorrect,
+      timeSpent: answer.timeSpent || 0
+    }))
+  );
 
   useEffect(() => {
     fetchUserHistory(1);
@@ -262,6 +432,13 @@ const AdminUserQuizHistory = () => {
                   
                   <div className="col col-actions">
                     <button
+                      onClick={() => openResultDetail(result.id)}
+                      className="btn btn-view"
+                      title="Xem chi tiết"
+                    >
+                      👁️
+                    </button>
+                    <button
                       onClick={() => deleteResult(result.id, result.quizTitle)}
                       className="btn btn-delete"
                       title="Xóa kết quả này"
@@ -299,6 +476,143 @@ const AdminUserQuizHistory = () => {
             </div>
           )}
         </>
+      )}
+      {detailModalOpen && (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal__content">
+            <button className="admin-modal__close" onClick={closeDetailModal} aria-label="Đóng">×</button>
+            {detailLoading ? (
+              <div className="modal-loading">
+                <div className="spinner"></div>
+                <p>Đang tải chi tiết bài làm...</p>
+              </div>
+            ) : selectedResult ? (
+              <>
+                <div className="modal-header">
+                  <div>
+                    <h2>{selectedResult.quizMeta?.title || selectedResult.quizTitle}</h2>
+                    <p>Mã bài: {selectedResult.quizId}</p>
+                    <p>Kết quả ID: {selectedResult.id}</p>
+                    <p>Hoàn thành: {formatDate(selectedResult.completedAt)}</p>
+                  </div>
+                  <div className="modal-score">
+                    <div className="modal-score__value">{selectedResult.percentage}%</div>
+                    <div className={`grade ${getGradeClass(selectedResult.grade)}`}>{selectedResult.grade}</div>
+                  </div>
+                </div>
+
+                <div className="modal-summary-grid">
+                  <div>
+                    <span className="summary-label">Điểm</span>
+                    <strong>{selectedResult.score}/{selectedResult.totalQuestions}</strong>
+                  </div>
+                  <div>
+                    <span className="summary-label">Thời gian</span>
+                    <strong>{selectedResult.formattedTime}</strong>
+                  </div>
+                  <div>
+                    <span className="summary-label">Trạng thái</span>
+                    <strong>{selectedResult.status}</strong>
+                  </div>
+                </div>
+
+                <div className="modal-toolbar">
+                  <button
+                    className="btn"
+                    onClick={toggleEditing}
+                    disabled={savingDetail || !selectedResult.answers?.length}
+                  >
+                    {editingEnabled ? 'Hủy chỉnh sửa' : 'Chỉnh sửa đáp án'}
+                  </button>
+                  {editingEnabled && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={saveEditedAnswers}
+                      disabled={savingDetail}
+                    >
+                      {savingDetail ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    </button>
+                  )}
+                </div>
+
+                {detailSuccess && <div className="notice success modal-notice">{detailSuccess}</div>}
+                {detailError && <div className="notice error modal-notice">{detailError}</div>}
+
+                {editingEnabled && (
+                  <p className="edit-hint">
+                    Nhập JSON hợp lệ cho đáp án phức tạp (ví dụ {'{'}"left": ["A"]{'}'}). Với đáp án đơn, nhập trực tiếp ký tự hoặc nội dung cần chỉnh sửa.
+                  </p>
+                )}
+
+                <div className="admin-question-list">
+                  {selectedResult.answers?.map((answer, index) => {
+                    const editable = editableAnswers[index];
+                    return (
+                      <div key={`${answer.questionId}-${index}`} className="admin-question-card">
+                        <div className="admin-question-head">
+                          <div>
+                            <span className="question-index">Câu {index + 1}</span>
+                            <p className="question-prompt">{answer.question?.prompt || 'Câu hỏi không còn khả dụng'}</p>
+                          </div>
+                          <span className={`answer-status ${answer.isCorrect ? 'correct' : 'incorrect'}`}>
+                            {answer.isCorrect ? 'Đúng' : 'Sai'}
+                          </span>
+                        </div>
+                        <div className="admin-question-meta">
+                          <span>Loại: {answer.question?.type || 'N/A'}</span>
+                          <span>Thời gian: {answer.formattedTime}</span>
+                        </div>
+                        <div className="admin-answer-columns">
+                          <div>
+                            <div className="answer-title">Trả lời của user</div>
+                            {renderAnswerSnippet(answer.userAnswer)}
+                          </div>
+                          <div>
+                            <div className="answer-title">Đáp án đúng</div>
+                            {renderAnswerSnippet(getCorrectReference(answer.question))}
+                          </div>
+                        </div>
+                        {editingEnabled && editable && (
+                          <div className="edit-panel">
+                            <label>
+                              <span>Đáp án (JSON hoặc văn bản)</span>
+                              <textarea
+                                rows={4}
+                                value={editable.userAnswerText}
+                                onChange={(e) => updateEditableAnswer(index, 'userAnswerText', e.target.value)}
+                              />
+                            </label>
+                            <div className="edit-controls">
+                              <label className="checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={!!editable.isCorrect}
+                                  onChange={(e) => updateEditableAnswer(index, 'isCorrect', e.target.checked)}
+                                />
+                                Đánh dấu đúng
+                              </label>
+                              <label>
+                                Thời gian (giây)
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={editable.timeSpent}
+                                  onChange={(e) => updateEditableAnswer(index, 'timeSpent', e.target.value)}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="notice error">{detailError || 'Không có dữ liệu để hiển thị'}</div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
