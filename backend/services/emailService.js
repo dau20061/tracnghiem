@@ -2,23 +2,14 @@ import nodemailer from 'nodemailer';
 
 class EmailService {
   constructor() {
-    // Brevo (Sendinblue) SMTP - Hoạt động tốt với Render
-    const useBrevo = process.env.BREVO_API_KEY;
+    // Kiểm tra có Brevo API key không
+    this.brevoApiKey = process.env.BREVO_API_KEY;
+    this.useBrevoAPI = !!this.brevoApiKey;
     
-    if (useBrevo) {
-      // Dùng Brevo SMTP
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.BREVO_USER || process.env.EMAIL_USER,
-          pass: process.env.BREVO_API_KEY,
-        },
-      });
-      console.log('📧 Using Brevo SMTP');
+    if (this.useBrevoAPI) {
+      console.log('📧 Using Brevo HTTP API (no SMTP blocking)');
     } else {
-      // Fallback to Gmail
+      // Fallback to Gmail SMTP
       this.transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -35,6 +26,41 @@ class EmailService {
         socketTimeout: 15000
       });
       console.log('📧 Using Gmail SMTP');
+    }
+  }
+
+  // Gửi email qua Brevo HTTP API
+  async sendViaBrevoAPI(to, subject, htmlContent) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': this.brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: process.env.EMAIL_FROM_NAME || 'TracNghiem Platform',
+            email: process.env.BREVO_USER || process.env.EMAIL_USER
+          },
+          to: [{ email: to }],
+          subject: subject,
+          htmlContent: htmlContent
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Brevo API error');
+      }
+
+      const data = await response.json();
+      console.log('📧 Email sent via Brevo API:', data.messageId);
+      return { success: true, messageId: data.messageId };
+    } catch (error) {
+      console.error('❌ Brevo API error:', error.message);
+      return { success: false, error: error.message };
     }
   }
 
@@ -325,10 +351,9 @@ class EmailService {
     `;
   }
 
-  // Gửi email OTP xác thực với retry
-  async sendOTPEmail(userEmail, userName, otp, retries = 2) {
-    try {
-      const htmlContent = `
+  // Gửi email OTP xác thực
+  async sendOTPEmail(userEmail, userName, otp) {
+    const htmlContent = `
         <!DOCTYPE html>
         <html lang="vi">
         <head>
@@ -381,6 +406,17 @@ class EmailService {
         </html>
       `;
 
+    // Dùng Brevo API nếu có
+    if (this.useBrevoAPI) {
+      return this.sendViaBrevoAPI(
+        userEmail,
+        '🔐 Mã xác thực OTP - TracNghiem Platform',
+        htmlContent
+      );
+    }
+
+    // Fallback SMTP
+    try {
       const mailOptions = {
         from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
         to: userEmail,
@@ -392,23 +428,14 @@ class EmailService {
       console.log('📧 OTP email sent:', result.messageId);
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      console.error(`❌ Failed to send OTP email (attempt ${3 - retries}/3):`, error.message);
-      
-      // Retry nếu là timeout và còn lượt thử
-      if (retries > 0 && (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION')) {
-        console.log(`🔄 Retrying... (${retries} attempts left)`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Đợi 2s
-        return this.sendOTPEmail(userEmail, userName, otp, retries - 1);
-      }
-      
+      console.error('❌ Failed to send OTP email:', error.message);
       return { success: false, error: error.message };
     }
   }
 
-  // Gửi email chào mừng cho user mới đăng ký
+  // Gửi email chào mừng
   async sendWelcomeEmail(userEmail, userName) {
-    try {
-      const htmlContent = `
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -439,6 +466,17 @@ class EmailService {
         </html>
       `;
 
+    // Dùng Brevo API nếu có
+    if (this.useBrevoAPI) {
+      return this.sendViaBrevoAPI(
+        userEmail,
+        '🎉 Chào mừng đến với TracNghiem Platform',
+        htmlContent
+      );
+    }
+
+    // Fallback SMTP
+    try {
       const mailOptions = {
         from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
         to: userEmail,
