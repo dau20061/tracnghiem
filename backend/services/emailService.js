@@ -88,7 +88,10 @@ class EmailService {
                     email: this.senderEmail
                 },
                 to: [{ email: to }],
-                replyTo: this.replyToEmail,
+                replyTo: {
+                    email: this.replyToEmail,
+                    name: this.senderName
+                },
                 subject,
                 htmlContent
             };
