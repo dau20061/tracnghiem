@@ -212,8 +212,10 @@ router.post("/register", async (req, res) => {
       await emailService.sendOTPEmail(normalizedEmail, username, otp);
       console.log(`📧 OTP sent to ${normalizedEmail}: ${otp}`);
     } catch (emailError) {
-      console.error("Failed to send OTP email:", emailError);
+      console.error("❌ Failed to send OTP email:", emailError.message);
+      console.error("⚠️ Email service timeout - OTP saved in database:", otp);
       // Không fail registration nếu email lỗi
+      // User vẫn có thể dùng resend-otp hoặc admin có thể xem OTP trong logs
     }
     
     return res.status(201).json({ 
@@ -308,16 +310,58 @@ router.post("/resend-otp", async (req, res) => {
     user.otpExpiresAt = otpExpiresAt;
     await user.save();
     
+    console.log(`🔄 Resending OTP for ${user.username}: ${otp}`);
+    
     // Gửi email
     try {
       await emailService.sendOTPEmail(user.email, user.username, otp);
       console.log(`📧 OTP resent to ${user.email}: ${otp}`);
+      return res.json({ message: "Đã gửi lại mã OTP. Vui lòng kiểm tra email" });
     } catch (emailError) {
-      console.error("Failed to resend OTP email:", emailError);
-      return res.status(500).json({ message: "Không thể gửi email OTP" });
+      console.error("❌ Failed to resend OTP email:", emailError.message);
+      // Trả về success nhưng với warning
+      return res.json({ 
+        message: "OTP đã được tạo. Do lỗi email service, vui lòng liên hệ admin để lấy mã.",
+        warning: "Email service timeout",
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// GET OTP cho debug (chỉ development hoặc có admin key)
+router.get("/get-otp/:username", async (req, res) => {
+  try {
+    // Chỉ cho phép trong development hoặc với admin key
+    const adminKey = req.headers["x-admin-key"];
+    if (process.env.NODE_ENV === 'production' && adminKey !== process.env.ADMIN_API_KEY) {
+      return res.status(403).json({ message: "Không có quyền truy cập" });
     }
     
-    return res.json({ message: "Đã gửi lại mã OTP. Vui lòng kiểm tra email" });
+    const { username } = req.params;
+    const user = await User.findOne({ username });
+    
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    if (user.isVerified) {
+      return res.json({ message: "User đã được xác thực", isVerified: true });
+    }
+    
+    const isExpired = user.otpExpiresAt && new Date() > user.otpExpiresAt;
+    
+    return res.json({
+      username: user.username,
+      email: user.email,
+      otp: user.verificationOTP || "Chưa có OTP",
+      expiresAt: user.otpExpiresAt,
+      isExpired,
+      isVerified: user.isVerified
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Lỗi máy chủ" });
