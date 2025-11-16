@@ -1,49 +1,65 @@
-import nodemailer from 'nodemailer';
-
 class EmailService {
   constructor() {
-    // Kiểm tra có Brevo API key không
+    // Chỉ dùng Brevo HTTP API - không cần SMTP
     this.brevoApiKey = process.env.BREVO_API_KEY;
-    this.useBrevoAPI = !!this.brevoApiKey;
+    this.senderEmail = process.env.BREVO_USER || process.env.EMAIL_USER;
+    this.senderName = process.env.EMAIL_FROM_NAME || 'TracNghiem Platform';
     
-    console.log('🔍 Email Service Config:');
-    console.log('  BREVO_API_KEY:', this.brevoApiKey ? '✅ SET' : '❌ NOT SET');
-    console.log('  EMAIL_USER:', process.env.EMAIL_USER || process.env.BREVO_USER || 'NOT SET');
-    console.log('  EMAIL_FROM_NAME:', process.env.EMAIL_FROM_NAME || 'NOT SET');
+    console.log('='.repeat(60));
+    console.log('🔍 EMAIL SERVICE INITIALIZATION');
+    console.log('='.repeat(60));
+    console.log('  Mode: Brevo HTTP API Only (No SMTP)');
+    console.log('  BREVO_API_KEY:', this.brevoApiKey ? '✅ CONFIGURED' : '❌ MISSING');
+    console.log('  Sender Email:', this.senderEmail || '❌ NOT SET');
+    console.log('  Sender Name:', this.senderName);
+    console.log('='.repeat(60));
     
-    if (this.useBrevoAPI) {
-      console.log('📧 Using Brevo HTTP API (no SMTP blocking)');
+    if (!this.brevoApiKey) {
+      console.error('');
+      console.error('❌ ERROR: BREVO_API_KEY is required!');
+      console.error('   Email service will NOT work without it.');
+      console.error('   Please set BREVO_API_KEY in your environment variables.');
+      console.error('');
+    } else if (!this.senderEmail) {
+      console.error('');
+      console.error('❌ ERROR: Sender email is required!');
+      console.error('   Please set BREVO_USER or EMAIL_USER in your environment variables.');
+      console.error('');
     } else {
-      console.log('⚠️ BREVO_API_KEY not found, falling back to Gmail SMTP');
-      // Fallback to Gmail SMTP
-      this.transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT || '587'),
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000
-      });
-      console.log('📧 Using Gmail SMTP');
+      console.log('✅ Email service ready - Using Brevo HTTP API\n');
     }
   }
 
   // Gửi email qua Brevo HTTP API
-  async sendViaBrevoAPI(to, subject, htmlContent) {
+  async sendEmail(to, subject, htmlContent) {
+    if (!this.brevoApiKey) {
+      const error = 'BREVO_API_KEY not configured';
+      console.error('❌ Cannot send email:', error);
+      return { success: false, error };
+    }
+
+    if (!this.senderEmail) {
+      const error = 'Sender email not configured';
+      console.error('❌ Cannot send email:', error);
+      return { success: false, error };
+    }
+
     try {
-      const senderEmail = process.env.BREVO_USER || process.env.EMAIL_USER || 'noreply@tracnghiem.com';
-      const senderName = process.env.EMAIL_FROM_NAME || 'TracNghiem Platform';
+      console.log('\n📤 SENDING EMAIL');
+      console.log('   To:', to);
+      console.log('   Subject:', subject);
+      console.log('   From:', `${this.senderName} <${this.senderEmail}>`);
       
-      console.log(`📤 Sending via Brevo API to: ${to}`);
-      console.log(`   From: ${senderName} <${senderEmail}>`);
-      
+      const requestBody = {
+        sender: {
+          name: this.senderName,
+          email: this.senderEmail
+        },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: htmlContent
+      };
+
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -51,24 +67,19 @@ class EmailService {
           'api-key': this.brevoApiKey,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({
-          sender: {
-            name: senderName,
-            email: senderEmail
-          },
-          to: [{ email: to }],
-          subject: subject,
-          htmlContent: htmlContent
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Brevo API Response Error:', response.status, errorText);
+        console.error('❌ Brevo API Error Response:', response.status);
+        console.error('   Response:', errorText);
+        
         let errorMsg = `Brevo API error (${response.status})`;
         try {
           const errorJson = JSON.parse(errorText);
           errorMsg = errorJson.message || errorMsg;
+          console.error('   Message:', errorMsg);
         } catch (e) {
           errorMsg = errorText || errorMsg;
         }
@@ -76,26 +87,32 @@ class EmailService {
       }
 
       const data = await response.json();
-      console.log('✅ Email sent via Brevo API successfully!');
+      console.log('✅ EMAIL SENT SUCCESSFULLY!');
       console.log('   Message ID:', data.messageId);
+      console.log('');
       return { success: true, messageId: data.messageId };
     } catch (error) {
-      console.error('❌ Brevo API error:', error.message);
-      console.error('   Full error:', error);
+      console.error('❌ FAILED TO SEND EMAIL');
+      console.error('   Error:', error.message);
+      console.error('');
       return { success: false, error: error.message };
     }
   }
 
-  // Kiểm tra kết nối email
+  // Kiểm tra cấu hình
   async verifyConnection() {
-    try {
-      await this.transporter.verify();
-      console.log('✅ Email service ready');
-      return true;
-    } catch (error) {
-      console.error('❌ Email service error:', error.message);
+    if (!this.brevoApiKey) {
+      console.error('❌ Cannot verify: BREVO_API_KEY not set');
       return false;
     }
+    
+    if (!this.senderEmail) {
+      console.error('❌ Cannot verify: Sender email not set');
+      return false;
+    }
+    
+    console.log('✅ Email service configured with Brevo HTTP API');
+    return true;
   }
 
   // Gửi email thông báo thanh toán thành công
@@ -111,18 +128,13 @@ class EmailService {
         purchaseDate
       });
 
-      const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
-        to: userEmail,
-        subject: '🎉 Thanh toán thành công - TracNghiem Platform',
-        html: htmlContent,
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('📧 Email sent successfully:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      return await this.sendEmail(
+        userEmail,
+        '🎉 Thanh toán thành công - TracNghiem Platform',
+        htmlContent
+      );
     } catch (error) {
-      console.error('❌ Failed to send email:', error);
+      console.error('❌ Failed to send payment email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -416,7 +428,7 @@ class EmailService {
                         </ul>
                     </div>
 
-                    <p>Nếu bạn gặp vấn đề, vui lòng liên hệ: <a href="mailto:${process.env.EMAIL_USER}" style="color: #2563eb;">${process.env.EMAIL_USER}</a></p>
+                    <p>Nếu bạn gặp vấn đề, vui lòng liên hệ: <a href="mailto:${this.senderEmail}" style="color: #2563eb;">${this.senderEmail}</a></p>
                 </div>
                 <div class="footer">
                     <p><strong>TracNghiem Platform</strong></p>
@@ -428,31 +440,11 @@ class EmailService {
         </html>
       `;
 
-    // Dùng Brevo API nếu có
-    if (this.useBrevoAPI) {
-      return this.sendViaBrevoAPI(
-        userEmail,
-        '🔐 Mã xác thực OTP - TracNghiem Platform',
-        htmlContent
-      );
-    }
-
-    // Fallback SMTP
-    try {
-      const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
-        to: userEmail,
-        subject: '🔐 Mã xác thực OTP - TracNghiem Platform',
-        html: htmlContent,
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('📧 OTP email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
-    } catch (error) {
-      console.error('❌ Failed to send OTP email:', error.message);
-      return { success: false, error: error.message };
-    }
+    return await this.sendEmail(
+      userEmail,
+      '🔐 Mã xác thực OTP - TracNghiem Platform',
+      htmlContent
+    );
   }
 
   // Gửi email chào mừng
@@ -488,31 +480,11 @@ class EmailService {
         </html>
       `;
 
-    // Dùng Brevo API nếu có
-    if (this.useBrevoAPI) {
-      return this.sendViaBrevoAPI(
-        userEmail,
-        '🎉 Chào mừng đến với TracNghiem Platform',
-        htmlContent
-      );
-    }
-
-    // Fallback SMTP
-    try {
-      const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
-        to: userEmail,
-        subject: '🎉 Chào mừng đến với TracNghiem Platform',
-        html: htmlContent,
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('📧 Welcome email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
-    } catch (error) {
-      console.error('❌ Failed to send welcome email:', error);
-      return { success: false, error: error.message };
-    }
+    return await this.sendEmail(
+      userEmail,
+      '🎉 Chào mừng đến với TracNghiem Platform',
+      htmlContent
+    );
   }
 }
 
