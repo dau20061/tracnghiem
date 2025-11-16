@@ -29,6 +29,8 @@ const UserSchema = new mongoose.Schema(
       enum: ["pending", "active", "disabled"],
       default: "pending",
     },
+    passwordResetOTP: { type: String, default: null },
+    passwordResetExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

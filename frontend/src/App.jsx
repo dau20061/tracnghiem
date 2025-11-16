@@ -25,6 +25,7 @@ import PaymentSuccess from "./page/payment/PaymentSuccess";
 import PaymentWaiting from "./page/payment/PaymentWaiting";
 import SupportChat from "./shared/SupportChat";
 import VerifyOTP from "./page/verify-otp/VerifyOTP";
+import ProfilePage from "./page/profile/ProfilePage";
 export default function App() {
   return (
     <BrowserRouter>
@@ -60,6 +61,14 @@ export default function App() {
           element={
             <RequireAuth>
               <QuizHistory />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
             </RequireAuth>
           }
         />

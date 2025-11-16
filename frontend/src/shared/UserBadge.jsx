@@ -117,6 +117,11 @@ export default function UserBadge() {
     navigate("/quiz-history");
   };
 
+  const gotoProfile = () => {
+    setOpen(false);
+    navigate("/profile");
+  };
+
   return (
     <div className="user-badge" ref={menuRef}>
       <button className="user-pill" onClick={() => setOpen((v) => !v)}>
@@ -134,6 +139,7 @@ export default function UserBadge() {
             </div>
             {user.isDisabled && <div className="meta-disabled">Tài khoản đang bị vô hiệu hóa</div>}
           </div>
+          <button className="menu-item" onClick={gotoProfile}>👤 Hồ sơ tài khoản</button>
           <button className="menu-item" onClick={gotoHistory}>📊 Lịch sử làm bài</button>
           <button className="menu-item" onClick={gotoUpgrade}>Nâng cấp quyền</button>
           <button className="menu-item" onClick={logout}>Đăng xuất</button>

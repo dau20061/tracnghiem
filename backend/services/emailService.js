@@ -329,6 +329,50 @@ class EmailService {
             htmlContent
         );
     }
+
+    async sendPasswordResetOTPEmail(userEmail, userName, otp) {
+        const safeName = userName || 'bạn';
+        const safeOtp = otp || '000000';
+        const htmlContent = this.generatePasswordResetHTML(safeName, safeOtp);
+        return await this.sendEmail(
+            userEmail,
+            '🔐 Xác nhận đổi mật khẩu - TracNghiem Platform',
+            htmlContent
+        );
+    }
+
+    generatePasswordResetHTML(userName, otp) {
+        return `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>OTP đổi mật khẩu</title>
+            <style>
+                body { margin:0; padding:0; font-family:Arial,sans-serif; background:#f3f4f6; color:#111827; }
+                .card { max-width:560px; margin:0 auto; background:#ffffff; border-radius:20px; padding:32px; box-shadow:0 20px 45px rgba(15,23,42,0.15); }
+                h1 { margin-top:0; color:#0f172a; }
+                .otp-box { margin:24px 0; background:#0f172a; color:#e0f2fe; border-radius:16px; padding:24px; text-align:center; letter-spacing:10px; font-size:36px; font-weight:700; }
+                .note { color:#475569; font-size:14px; }
+                .warning { background:#fef3c7; border-left:4px solid #f59e0b; padding:16px; border-radius:12px; margin-top:20px; color:#92400e; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>Xác nhận đổi mật khẩu</h1>
+                <p>Xin chào <strong>${userName}</strong>,</p>
+                <p>Chúng tôi vừa nhận yêu cầu đổi mật khẩu cho tài khoản TracNghiem của bạn. Vui lòng nhập mã OTP bên dưới trong vòng 10 phút để hoàn tất.</p>
+                <div class="otp-box">${otp}</div>
+                <p class="note">Nếu bạn không yêu cầu đổi mật khẩu, vui lòng bỏ qua email này và đổi mật khẩu ngay để đảm bảo an toàn.</p>
+                <div class="warning">
+                    Không chia sẻ mã này cho bất kỳ ai. Đội ngũ hỗ trợ của TracNghiem sẽ không bao giờ hỏi bạn mã OTP.
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+    }
 }
 
 export default new EmailService();

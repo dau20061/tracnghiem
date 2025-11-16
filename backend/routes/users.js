@@ -9,6 +9,8 @@ const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 let adminKeyWarningLogged = false;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const PASSWORD_RESET_TTL_MS = 10 * 60 * 1000;
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const resolveTotalPurchased = (user) => {
   if (typeof user.totalPurchasedMs === "number" && Number.isFinite(user.totalPurchasedMs)) {
@@ -193,7 +195,7 @@ router.post("/register", async (req, res) => {
     }
     
     // Tạo mã OTP 6 số
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOtp();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
     
     const passwordHash = await bcrypt.hash(password, 10);
@@ -304,7 +306,7 @@ router.post("/resend-otp", async (req, res) => {
     }
     
     // Tạo OTP mới
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOtp();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
     user.verificationOTP = otp;
@@ -330,6 +332,77 @@ router.post("/resend-otp", async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+router.post("/request-password-otp", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    if (user.isDisabled) {
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa" });
+    }
+    if (!user.email) {
+      return res.status(400).json({ message: "Tài khoản chưa có email để gửi OTP" });
+    }
+
+    const otp = generateOtp();
+    user.passwordResetOTP = otp;
+    user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+    await user.save();
+
+    try {
+      await emailService.sendPasswordResetOTPEmail(user.email, user.username, otp);
+      return res.json({ message: "Đã gửi mã OTP xác nhận đổi mật khẩu" });
+    } catch (emailError) {
+      console.error("❌ Failed to send password reset OTP:", emailError.message);
+      return res.json({
+        message: "OTP đổi mật khẩu đã được tạo",
+        warning: "Không gửi được email. Vui lòng liên hệ hỗ trợ để lấy mã.",
+        otp: process.env.NODE_ENV === "development" ? otp : undefined,
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Không thể tạo OTP đổi mật khẩu" });
+  }
+});
+
+router.post("/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { otp, newPassword } = req.body || {};
+    if (!otp || !newPassword) {
+      return res.status(400).json({ message: "Thiếu OTP hoặc mật khẩu mới" });
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 6) {
+      return res.status(400).json({ message: "Mật khẩu phải tối thiểu 6 ký tự" });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    if (!user.passwordResetOTP || !user.passwordResetExpiresAt) {
+      return res.status(400).json({ message: "Vui lòng yêu cầu mã OTP trước" });
+    }
+    if (new Date() > user.passwordResetExpiresAt) {
+      return res.status(400).json({ message: "Mã OTP đã hết hạn" });
+    }
+    if (user.passwordResetOTP !== otp) {
+      return res.status(401).json({ message: "Mã OTP không chính xác" });
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordResetOTP = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+
+    res.json({ message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Không đổi được mật khẩu" });
   }
 });
 
