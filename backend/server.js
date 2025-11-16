@@ -18,7 +18,16 @@ import testEmailRoutes from "./routes/test-email.js";
 
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+
+const corsOptions = {
+  origin: [
+    'http://localhost:5173',
+    'https://tracnghiem-tawny.vercel.app'
+  ],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
