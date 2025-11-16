@@ -37,8 +37,7 @@ app.use("/api/quizzes", quizzesRoutes);
 
 
 // Start
-const PORT = process.env.PORT || 4000;
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = parseInt(process.env.PORT) || 10000;
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -49,8 +48,8 @@ mongoose
     console.log("🔧 Initializing email service...");
     await emailService.verifyConnection();
     
-    app.listen(PORT, HOST, () => {
-      console.log(`🚀 Server listening on ${HOST}:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server listening on port ${PORT}`);
       console.log("📧 Email service ready");
     });
   })
