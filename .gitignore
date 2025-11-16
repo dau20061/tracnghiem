@@ -1,0 +1,7 @@
+# Ignore environment secrets
+backend/.env
+
+# Node build artifacts
+node_modules/
+frontend/node_modules/
+backend/node_modules/
