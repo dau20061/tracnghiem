@@ -53,14 +53,11 @@ export default function CoursesPage(){
           </nav>
           {!isLoggedIn && (
             <div style={{display:'flex',gap:8}}>
-              <button className="btn" onClick={() => navigate('/login')}>
-                Đăng nhập
-              </button>
               <button
                 className="btn btn-primary"
                 onClick={() => navigate('/login', { state: { mode: 'register' } })}
               >
-                Đăng ký
+                Đăng nhập
               </button>
             </div>
           )}
