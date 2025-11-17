@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./course.css";
 
 const ALL = "Tất cả";
@@ -14,6 +15,7 @@ const RAW = [
 ];
 
 export default function CoursesPage(){
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState(ALL);
   const [sort, setSort] = useState("phuhop");
@@ -51,8 +53,15 @@ export default function CoursesPage(){
           </nav>
           {!isLoggedIn && (
             <div style={{display:'flex',gap:8}}>
-              <button className="btn">Đăng nhập</button>
-              <button className="btn btn-primary">Đăng ký</button>
+              <button className="btn" onClick={() => navigate('/login')}>
+                Đăng nhập
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate('/login', { state: { mode: 'register' } })}
+              >
+                Đăng ký
+              </button>
             </div>
           )}
         </div>
@@ -95,8 +104,15 @@ export default function CoursesPage(){
                   <h3 className="title">{c.title}</h3>
                   <p className="text">{c.desc}</p>
                   <div className="actions">
-                    <button className="btn">Xem chi tiết</button>
-                    <button className="btn btn-primary">Vào học</button>
+                    <button className="btn" onClick={() => navigate(`/practice?course=${c.id}`)}>
+                      Xem chi tiết
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate(isLoggedIn ? `/quiz/${c.id}` : '/login', { state: { from: `/quiz/${c.id}` } })}
+                    >
+                      Vào học
+                    </button>
                   </div>
                 </article>
               ))}
@@ -121,8 +137,15 @@ export default function CoursesPage(){
                   <h3 className="title">{c.title}</h3>
                   <p className="text">{c.desc}</p>
                   <div className="actions">
-                    <button className="btn">Xem chi tiết</button>
-                    <button className="btn btn-primary">Ghi danh</button>
+                    <button className="btn" onClick={() => navigate(`/practice?course=${c.id}`)}>
+                      Xem chi tiết
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate(isLoggedIn ? `/quiz/${c.id}` : '/login', { state: { from: `/quiz/${c.id}` } })}
+                    >
+                      Ghi danh
+                    </button>
                   </div>
                 </article>
               ))}
@@ -147,8 +170,15 @@ export default function CoursesPage(){
                   <h3 className="title">{c.title}</h3>
                   <p className="text">{c.desc}</p>
                   <div className="actions">
-                    <button className="btn">Xem chi tiết</button>
-                    <button className="btn btn-primary">Bắt đầu</button>
+                    <button className="btn" onClick={() => navigate(`/practice?course=${c.id}`)}>
+                      Xem chi tiết
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate(isLoggedIn ? `/quiz/${c.id}` : '/login', { state: { from: `/quiz/${c.id}` } })}
+                    >
+                      Bắt đầu
+                    </button>
                   </div>
                 </article>
               ))}

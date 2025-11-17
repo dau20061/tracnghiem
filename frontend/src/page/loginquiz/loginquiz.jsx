@@ -52,7 +52,9 @@ export default function LoginPage() {
     saveAuth(data.token, data.user);
     const next = typeof fromPath === "string" && fromPath && fromPath !== "/login"
       ? fromPath
-      : "/";
+      : data?.user?.role === "admin"
+        ? "/admin"
+        : "/";
     navigate(next, { replace: true });
   };
 
