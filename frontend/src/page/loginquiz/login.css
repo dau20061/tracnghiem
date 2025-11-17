@@ -34,6 +34,21 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color
   margin:4px 0 0; color:var(--muted); font-size:14px;
 }
 
+.role-toggle{
+  display:flex; gap:8px; margin-top:16px; padding:6px; border-radius:14px;
+  background:#f8fafc; border:1px solid var(--border);
+}
+.role-btn{
+  flex:1; border:0; background:transparent; border-radius:10px;
+  padding:10px 0; font-weight:600; color:var(--muted); cursor:pointer;
+  transition:all .2s ease;
+}
+.role-btn.active{
+  background:linear-gradient(135deg,var(--brand1),var(--brand2));
+  color:#fff; box-shadow:var(--shadow);
+}
+.role-btn:not(.active):hover{ color:var(--text); }
+
 .form{ display:grid; gap:10px; margin-top:12px; }
 .label{ font-size:13px; font-weight:600; }
 .input{

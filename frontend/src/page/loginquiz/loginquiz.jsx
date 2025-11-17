@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
   const [mode, setMode] = useState("login");
+  const [authRole, setAuthRole] = useState("user");
   const navigate = useNavigate();
   const location = useLocation();
   const fromPath = location.state?.from || "/";
@@ -24,6 +25,16 @@ export default function LoginPage() {
     }
     return "";
   }, [fromPath]);
+  const allowRegister = authRole === "user";
+
+  const handleRoleSwitch = (role) => {
+    setAuthRole(role);
+    if (role === "admin") {
+      setMode("login");
+    }
+    setErr("");
+    setNotice("");
+  };
 
   const saveAuth = (token, user) => {
     localStorage.setItem("token", token);
@@ -39,6 +50,10 @@ export default function LoginPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
+
+    if (authRole === "admin" && data?.user?.role !== "admin") {
+      throw new Error("Tài khoản này không có quyền admin");
+    }
     
     // Kiểm tra nếu tài khoản cần xác thực OTP
     if (data.needsVerification) {
@@ -50,11 +65,10 @@ export default function LoginPage() {
     }
     
     saveAuth(data.token, data.user);
-    const next = typeof fromPath === "string" && fromPath && fromPath !== "/login"
-      ? fromPath
-      : data?.user?.role === "admin"
-        ? "/admin"
-        : "/";
+
+    const shouldGoAdmin = authRole === "admin" || data?.user?.role === "admin";
+    const hasFromPath = typeof fromPath === "string" && fromPath && fromPath !== "/login";
+    const next = shouldGoAdmin ? "/admin" : hasFromPath ? fromPath : "/";
     navigate(next, { replace: true });
   };
 
@@ -99,19 +113,40 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="brand">
+          <div className="brand">
           <div className="logo">QZ</div>
           <div className="brand-text">
             <h1 className="title">QUIZ TRẮC NGHIỆM</h1>
-            <p className="subtitle">
-              {mode === "login" ? "Vui lòng đăng nhập để truy cập" : "Tạo tài khoản để bắt đầu"}
-            </p>
+              <p className="subtitle">
+                {authRole === "admin"
+                  ? "Đăng nhập dành cho quản trị viên"
+                  : mode === "login"
+                  ? "Vui lòng đăng nhập để truy cập"
+                  : "Tạo tài khoản để bắt đầu"}
+              </p>
             {quizId && (
               <p className="subtitle" style={{ marginTop: 4 }}>
                 <strong>Bài:</strong> #{quizId}
               </p>
             )}
           </div>
+        </div>
+
+        <div className="role-toggle">
+          <button
+            type="button"
+            className={`role-btn${authRole === "user" ? " active" : ""}`}
+            onClick={() => handleRoleSwitch("user")}
+          >
+            Người dùng
+          </button>
+          <button
+            type="button"
+            className={`role-btn${authRole === "admin" ? " active" : ""}`}
+            onClick={() => handleRoleSwitch("admin")}
+          >
+            Admin
+          </button>
         </div>
 
         <form className="form" onSubmit={onSubmit}>
@@ -137,7 +172,7 @@ export default function LoginPage() {
             required
           />
 
-          {mode === "register" && (
+          {allowRegister && mode === "register" && (
             <>
               <label className="label" htmlFor="email">Gmail</label>
               <input
@@ -172,20 +207,39 @@ export default function LoginPage() {
         </form>
 
         <div className="foot">
-          {mode === "login" ? (
-            <>
-              Chưa có tài khoản?{" "}
-              <button className="btn-switch" type="button" onClick={() => { setMode("register"); setErr(""); setNotice(""); }}>
-                Đăng ký ngay
-              </button>
-            </>
+          {allowRegister ? (
+            mode === "login" ? (
+              <>
+                Chưa có tài khoản?{" "}
+                <button
+                  className="btn-switch"
+                  type="button"
+                  onClick={() => {
+                    setMode("register");
+                    setErr("");
+                    setNotice("");
+                  }}
+                >
+                  Đăng ký ngay
+                </button>
+              </>
+            ) : (
+              <>
+                Đã có tài khoản?{" "}
+                <button
+                  className="btn-switch"
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setErr("");
+                  }}
+                >
+                  Đăng nhập
+                </button>
+              </>
+            )
           ) : (
-            <>
-              Đã có tài khoản?{" "}
-              <button className="btn-switch" type="button" onClick={() => { setMode("login"); setErr(""); }}>
-                Đăng nhập
-              </button>
-            </>
+            <span>Admin được cấp tài khoản sẵn từ hệ thống.</span>
           )}
         </div>
       </div>
