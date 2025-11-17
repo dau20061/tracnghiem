@@ -36,6 +36,54 @@ const QuizHistory = () => {
     return found ? found.text : optionId;
   };
 
+  const isImageQuestion = (question) => ['image_single', 'image_grid'].includes(question?.type);
+
+  const renderImageChoice = (question, optionId, emptyLabel = '—') => {
+    if (!optionId) {
+      return <span className="muted">{emptyLabel}</span>;
+    }
+
+    const option = question?.options?.find((opt) => opt.id === optionId);
+    if (!option) {
+      return <span>{optionId}</span>;
+    }
+
+    return (
+      <div className="image-answer-chip" key={optionId}>
+        <div className="image-thumb">
+          <img
+            src={option.text}
+            alt={`Đáp án ${option.id}`}
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+              event.currentTarget.closest('.image-thumb')?.classList.add('image-thumb--error');
+            }}
+          />
+        </div>
+        <div className="image-meta">
+          <span>{option.caption || `Đáp án ${option.id}`}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderImageAnswerValue = (question, value, emptyLabel = '—') => {
+    if (!value || (Array.isArray(value) && value.length === 0)) {
+      return <span className="muted">{emptyLabel}</span>;
+    }
+
+    if (Array.isArray(value)) {
+      return (
+        <div className="image-answer-group">
+          {value.map((id) => renderImageChoice(question, id, emptyLabel))}
+        </div>
+      );
+    }
+
+    return renderImageChoice(question, value, emptyLabel);
+  };
+
   const renderAnswerValue = (question, value, emptyLabel = '—') => {
     // Trường hợp không có question metadata
     if (!question) {
@@ -76,7 +124,9 @@ const QuizHistory = () => {
       case 'image_single':
       case 'image_grid':
         if (!value) return <span className="muted">{emptyLabel}</span>;
-        return <span>{getOptionLabel(question, value)}</span>;
+        return isImageQuestion(question)
+          ? renderImageAnswerValue(question, value, emptyLabel)
+          : <span>{getOptionLabel(question, value)}</span>;
       case 'multi':
         if (!Array.isArray(value) || value.length === 0) {
           return <span className="muted">{emptyLabel}</span>;
