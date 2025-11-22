@@ -72,7 +72,12 @@ export default function QuizPage() {
       try {
         const parsed = JSON.parse(stored);
         setUser(parsed);
-        if (isMembershipActive(parsed)) {
+        
+        // Kiểm tra nếu là retry thì cho phép vào (không cần check lượt)
+        if (isRetry) {
+          setLocked(false);
+          setLockReason("");
+        } else if (isMembershipActive(parsed)) {
           setLocked(false);
           setLockReason("");
         } else {
@@ -113,12 +118,21 @@ export default function QuizPage() {
         if (!res.ok) throw new Error(json?.message || "Không lấy được thông tin tài khoản");
         setUser(json.user);
         localStorage.setItem("user", JSON.stringify(json.user));
-        if (isMembershipActive(json.user)) {
+        
+        // Nếu là retry thì không cần check lượt
+        if (isRetry) {
+          setLocked(false);
+          setLockReason("");
+        } else if (isMembershipActive(json.user)) {
           setLocked(false);
           setLockReason("");
         } else {
           setLocked(true);
-          setLockReason("Bạn cần nâng cấp gói Ngày/Tháng/Năm để làm bài.");
+          if (json.user.remainingAttempts === 0) {
+            setLockReason("Bạn đã hết lượt làm bài. Vui lòng nâng cấp.");
+          } else {
+            setLockReason("Tài khoản của bạn hiện chưa nâng cấp.");
+          }
         }
       } catch (error) {
         console.error(error);
@@ -130,7 +144,7 @@ export default function QuizPage() {
     };
 
     fetchMe();
-  }, [navigate, quizId, location.pathname, location.search]);
+  }, [navigate, quizId, location.pathname, location.search, isRetry]);
 
   // tải đề
   useEffect(() => {

@@ -5,7 +5,42 @@ import "./level1.css";
 export default function IC3Dashboard() {
   const [tab, setTab] = useState("lv1");
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  // Lấy thông tin user
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch (e) {
+        console.error("Parse user error:", e);
+      }
+    }
+  }, []);
+
+  // Hàm kiểm tra và navigate vào bài
+  const handleStartQuiz = (quizId) => {
+    const token = localStorage.getItem("token");
+    
+    // Kiểm tra đăng nhập
+    if (!token) {
+      alert("Bạn cần đăng nhập để làm bài.");
+      navigate("/login", { state: { from: `/quiz/${quizId}` } });
+      return;
+    }
+
+    // Kiểm tra lượt làm bài
+    if (!user || user.remainingAttempts <= 0) {
+      alert("Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.");
+      navigate("/upgrade");
+      return;
+    }
+
+    // Có lượt → cho vào làm bài
+    navigate(`/quiz/${quizId}`);
+  };
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -116,7 +151,7 @@ export default function IC3Dashboard() {
                                         <button
                         type="button"
                         className="btn-primary"
-                        onClick={() => navigate(`/quiz/ic3-lv1-${item.id}`)}
+                        onClick={() => handleStartQuiz(`ic3-lv1-${item.id}`)}
                         >
                         Vào bài
                         </button>
@@ -159,7 +194,7 @@ export default function IC3Dashboard() {
                     <button
                     type="button"
                     className="btn-primary"
-                    onClick={() => navigate(`/quiz/ic3-lv2-${i}`)}
+                    onClick={() => handleStartQuiz(`ic3-lv2-${i}`)}
                     >
                     Vào bài
                     </button>
@@ -203,7 +238,7 @@ export default function IC3Dashboard() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => navigate(`/quiz/ic3-lv3-${i}`)}
+          onClick={() => handleStartQuiz(`ic3-lv3-${i}`)}
         >
           Vào bài
         </button>
