@@ -118,9 +118,9 @@ const AdminRevenueStats = () => {
   // Get package name
   const getPackageName = (type) => {
     switch (type) {
-      case 'day': return 'Gói 1 ngày';
-      case 'month': return 'Gói 1 tháng'; 
-      case 'year': return 'Gói 1 năm';
+      case 'day': return 'Gói 3 lượt';
+      case 'month': return 'Gói 20 lượt'; 
+      case 'year': return 'Gói 200 lượt';
       default: return 'Không xác định';
     }
   };
@@ -293,9 +293,9 @@ const AdminRevenueStats = () => {
                 value={selectedPackage} 
                 onChange={(e) => handlePackageClick(e.target.value)}
               >
-                <option value="day">Gói 1 ngày</option>
-                <option value="month">Gói 1 tháng</option>
-                <option value="year">Gói 1 năm</option>
+                <option value="day">Gói 3 lượt</option>
+                <option value="month">Gói 20 lượt</option>
+                <option value="year">Gói 200 lượt</option>
               </select>
             </div>
           </div>

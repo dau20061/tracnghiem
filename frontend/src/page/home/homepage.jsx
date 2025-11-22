@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";import { API_URL } from '../../config/api';
+import React, { useEffect, useState } from "react";
+import { API_URL } from '../../config/api';
 
 import { useSearchParams } from "react-router-dom";
 import "./homepage.css";
 
 const PLAN_LABEL = {
-  day: "Gói 1 ngày",
-  month: "Gói 1 tháng", 
-  year: "Gói 1 năm",
+  day: "Gói 3 lượt",
+  month: "Gói 20 lượt", 
+  year: "Gói 200 lượt",
 };
 
 export default function HomePage() {

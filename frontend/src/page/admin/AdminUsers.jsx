@@ -221,9 +221,9 @@ export default function AdminUsers() {
             onChange={(e) => setCreateForm((f) => ({ ...f, plan: e.target.value }))}
           >
             <option value="free">Gói miễn phí</option>
-            <option value="day">Gói 1 ngày</option>
-            <option value="month">Gói 1 tháng</option>
-            <option value="year">Gói 1 năm</option>
+            <option value="day">Gói 3 lượt</option>
+            <option value="month">Gói 20 lượt</option>
+            <option value="year">Gói 200 lượt</option>
           </select>
           <button className="btn btn-primary" type="submit" disabled={loading}>Tạo</button>
         </form>

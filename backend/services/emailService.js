@@ -231,7 +231,7 @@ class EmailService {
                         </ul>
                     </div>
                     <div class="cta">
-                        <a href="https://tracnghiem.online" target="_blank" rel="noopener">Vào học ngay</a>
+                        <a href="https://tracnghiem-tawny.vercel.app/practice" target="_blank" rel="noopener">Vào học ngay</a>
                     </div>
                     <p>Nếu bạn cần hỗ trợ, hãy phản hồi email này hoặc liên hệ <a href="mailto:${this.replyToEmail}">${this.replyToEmail}</a>.</p>
                 </div>

@@ -162,8 +162,14 @@ export default function ProfilePage() {
             <div className="info-value">{user.email || "Chưa cập nhật"}</div>
           </div>
           <div>
-            <div className="info-label">Gói hiện tại</div>
-            <div className="info-value">{user.membershipLevel || "free"}</div>
+            <div className="info-label">Lượt làm bài còn lại</div>
+            <div className="info-value" style={{ color: '#2563eb', fontWeight: 'bold' }}>
+              {user.remainingAttempts || 0} lượt
+            </div>
+          </div>
+          <div>
+            <div className="info-label">Tổng lượt đã mua</div>
+            <div className="info-value">{user.totalPurchasedAttempts || 0} lượt</div>
           </div>
           <div>
             <div className="info-label">Trạng thái</div>
