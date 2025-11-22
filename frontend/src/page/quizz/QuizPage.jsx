@@ -13,6 +13,10 @@ export default function QuizPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Get retry information from location state
+  const isRetry = location.state?.isRetry || false;
+  const originalAttemptId = location.state?.originalAttemptId || null;
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -351,6 +355,8 @@ export default function QuizPage() {
       startedAt: new Date().toISOString(),
       sessionId: sessionId, // Thêm sessionId để track unique session
       hasTimeLimit: mode === "testing", // Đánh dấu bài có giới hạn thời gian
+      isRetry: isRetry, // Truyền retry flag
+      originalAttemptId: originalAttemptId, // Truyền original attempt ID
       ts: Date.now(), 
       mode, 
       autoByTime 

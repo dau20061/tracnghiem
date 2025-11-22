@@ -70,13 +70,12 @@ export default function QuizComplete() {
         timeSpent: answer.timeSpent || 0
       }));
 
-      // Check if this is a retry from location state
-      const locationState = window.history.state?.usr;
-      const isRetry = locationState?.isRetry || false;
-      const originalAttemptId = locationState?.originalAttemptId || null;
+      // Get retry info from state (fromState or fromStore)
+      const isRetry = fromState?.isRetry || fromStore?.isRetry || false;
+      const originalAttemptId = fromState?.originalAttemptId || fromStore?.originalAttemptId || null;
       
-      // Get hasTimeLimit from location state or result state
-      const hasTimeLimit = locationState?.hasTimeLimit || fromState?.hasTimeLimit || fromStore?.hasTimeLimit || false;
+      // Get hasTimeLimit from state
+      const hasTimeLimit = fromState?.hasTimeLimit || fromStore?.hasTimeLimit || false;
 
       const payload = {
         quizId: quizId,

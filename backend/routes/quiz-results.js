@@ -186,16 +186,7 @@ router.post("/submit", requireAuth, async (req, res) => {
         return res.status(400).json({ message: "Đã hết số lần làm lại" });
       }
 
-      // *** THAY ĐỔI: Retry cũng trừ lượt ***
-      if (user.remainingAttempts <= 0) {
-        return res.status(403).json({ 
-          message: "Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.",
-          code: "NO_ATTEMPTS"
-        });
-      }
-      user.remainingAttempts -= 1;
-      await user.save();
-
+      // *** RETRY KHÔNG TRỪ LƯỢT - chỉ dùng 5 lần retry miễn phí sau khi trả 1 lượt ***
       // Lưu vào RetryHistory thay vì tạo QuizResult mới
       const retryHistory = new RetryHistory({
         userId: req.userId,
