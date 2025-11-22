@@ -59,7 +59,8 @@ export default function IC3Dashboard() {
   const items = [1, 2, 3, 4, 5].map((i) => ({
     id: i,
     title: `IC3 GS6 Level 1 - Bài ${i}`,
-    description: "Bài luyện tập cơ bản – thời lượng ~15 phút",
+    description: "Bài luyện tập cơ bản",
+    timeInfo: "Có thể chọn Training (không giới hạn) hoặc Testing (tùy cấu hình bài)"
   }));
 
   return (
@@ -146,6 +147,7 @@ export default function IC3Dashboard() {
                     <div className="card-body">
                       <h3 className="card-title">{item.title}</h3>
                       <p className="card-text">{item.description}</p>
+                      <p className="card-text" style={{fontSize: '13px', color: '#64748b', marginTop: '4px'}}>⏱ {item.timeInfo}</p>
                       <div className="card-actions">
                         <span className="card-meta">~15 câu hỏi</span>
                                         <button

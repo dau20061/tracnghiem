@@ -822,6 +822,24 @@ export default function AdminPage() {
               <input type="checkbox" checked={!!quiz.settings?.immediateFeedback} onChange={(e)=>updateMeta({settings: {...(quiz.settings||{}), immediateFeedback: e.target.checked}})} />
             </div>
 
+            <div className="meta-row">
+              <label>Thời gian làm bài (phút)</label>
+              <select 
+                value={quiz.settings?.timeLimit || ""} 
+                onChange={(e)=>updateMeta({settings: {...(quiz.settings||{}), timeLimit: e.target.value ? parseInt(e.target.value) : null}})}
+                style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #e6eef6'}}
+              >
+                <option value="">Không giới hạn</option>
+                <option value="5">5 phút</option>
+                <option value="10">10 phút</option>
+                <option value="15">15 phút</option>
+                <option value="20">20 phút</option>
+                <option value="30">30 phút</option>
+                <option value="45">45 phút</option>
+                <option value="60">60 phút</option>
+              </select>
+            </div>
+
             <div className="questions-list">
               <div className="questions-head">
                 <h3>Câu hỏi</h3>

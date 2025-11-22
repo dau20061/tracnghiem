@@ -6,7 +6,6 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "./quiz.css";
 
 const cx = (...a) => a.filter(Boolean).join(" ");
-const TEST_DURATION = 3 * 60; // 3 phút
 
 export default function QuizPage() {
   const { quizId } = useParams();
@@ -159,7 +158,9 @@ export default function QuizPage() {
         setAnswers({});
         setSkipped(new Set());
         setQuestionStartTime(Date.now()); // Reset thời gian khi tải đề mới
-        setTimeLeft(mode === "testing" ? TEST_DURATION : null);
+        // Sử dụng timeLimit từ quiz settings (phút -> giây)
+        const quizTimeLimit = json.settings?.timeLimit ? json.settings.timeLimit * 60 : null;
+        setTimeLeft(mode === "testing" ? quizTimeLimit : null);
         completedRef.current = false;
         
         // Clear previous save flag để có thể lưu lại quiz result mới
@@ -184,7 +185,9 @@ export default function QuizPage() {
     setSkipped(new Set());
     setQuestionStartTime(Date.now()); // Reset thời gian
     if (timerRef.current) clearInterval(timerRef.current);
-    setTimeLeft(mode === "testing" ? TEST_DURATION : null);
+    // Sử dụng timeLimit từ quiz settings (phút -> giây)
+    const quizTimeLimit = data.settings?.timeLimit ? data.settings.timeLimit * 60 : null;
+    setTimeLeft(mode === "testing" ? quizTimeLimit : null);
     completedRef.current = false;
   }, [mode, data]);
 
@@ -445,11 +448,13 @@ export default function QuizPage() {
               <button
                 className={cx("btn", "btn-mode", mode === "testing" && "active")}
                 onClick={() => setMode("testing")}
+                disabled={!data.settings?.timeLimit}
+                title={!data.settings?.timeLimit ? "Bài này không có giới hạn thời gian" : ""}
               >
-                Testing (3 phút)
+                Testing {data.settings?.timeLimit ? `(${data.settings.timeLimit} phút)` : '(không giới hạn)'}
               </button>
             </div>
-            {mode === "testing" && (
+            {mode === "testing" && data.settings?.timeLimit && (
               <div className={cx("timer", timeLeft !== null && timeLeft <= 30 && "warn")}>
                 ⏱ {formatTime(timeLeft ?? 0)}
               </div>
