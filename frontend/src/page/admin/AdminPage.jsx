@@ -11,25 +11,36 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
   const handleImageUpload = async (file) => {
     if (!file) return;
     
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("image", file);
+    const key = `coord-${idx}`;
+    // Create object URL for immediate preview
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviews((p) => ({ ...p, [key]: objectUrl }));
     
+    setUploading(true);
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
       const res = await fetch(`${API_URL}/api/images/upload`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: formData,
       });
       
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json?.message || "Upload failed");
-      }
-      
       const json = await res.json();
-      updateQuestion(idx, { image: json.url });
-      setLocalPreviews(prev => ({ ...prev, [`coord-${idx}`]: json.url }));
+      if (!res.ok) throw new Error(json?.message || "Upload lỗi");
+      
+      // Convert relative URL to absolute URL
+      const url = json.url.startsWith('/') ? `${API_URL}${json.url}` : json.url;
+      
+      // Update question with server URL
+      updateQuestion(idx, { image: url });
+      
+      // Update preview to server URL and revoke object URL
+      setLocalPreviews((p) => {
+        const prev = p[key];
+        try { if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev); } catch(_){}
+        return { ...p, [key]: url };
+      });
     } catch (error) {
       console.error("Upload error:", error);
       alert("Không thể upload ảnh: " + error.message);
@@ -74,19 +85,20 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
       <div className="coordinate-upload">
         <label>Hình ảnh:</label>
         <input
-          type="text"
-          value={qObj.image || ""}
-          placeholder="URL hình ảnh"
-          onChange={(e) => {
-            updateQuestion(idx, { image: e.target.value });
-            setLocalPreviews(prev => ({ ...prev, [`coord-${idx}`]: e.target.value }));
-          }}
-        />
-        <input
           type="file"
           accept="image/*"
           onChange={(e) => handleImageUpload(e.target.files?.[0])}
           disabled={uploading}
+        />
+        <input
+          type="text"
+          value={qObj.image || ""}
+          placeholder="Hoặc nhập URL hình ảnh"
+          onChange={(e) => {
+            const url = e.target.value;
+            updateQuestion(idx, { image: url });
+            setLocalPreviews(prev => ({ ...prev, [`coord-${idx}`]: url }));
+          }}
         />
         {uploading && <span>Đang upload...</span>}
       </div>
