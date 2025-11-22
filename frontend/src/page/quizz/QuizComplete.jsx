@@ -12,6 +12,7 @@ export default function QuizComplete() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveAttempted, setSaveAttempted] = useState(false); // Thêm flag này
+  const [resultInfo, setResultInfo] = useState(null); // Lưu thông tin từ backend (canRetry, retriesUsed, etc.)
 
   // Ưu tiên lấy từ state khi điều hướng, fallback sessionStorage nếu refresh
   const fromState = loc.state;
@@ -30,6 +31,8 @@ export default function QuizComplete() {
   const startedAt = fromState?.startedAt ?? fromStore?.startedAt;
   const totalTimeSpent = fromState?.totalTimeSpent ?? fromStore?.totalTimeSpent ?? 0;
   const sessionId = fromState?.sessionId ?? fromStore?.sessionId;
+  const mode = fromState?.mode ?? fromStore?.mode ?? 'training'; // Lấy mode để hiển thị tạm
+  const hasTimeLimit = fromState?.hasTimeLimit ?? fromStore?.hasTimeLimit ?? false;
 
   // Tính toán điểm số dựa trên số câu đúng
   const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -102,6 +105,11 @@ export default function QuizComplete() {
         sessionStorage.setItem(sessionKey, 'true');
         const result = await response.json();
         console.log('✅ Quiz result saved successfully');
+        
+        // Lưu thông tin kết quả từ backend
+        if (result.result) {
+          setResultInfo(result.result);
+        }
         
         // Show remaining attempts if provided
         if (result.remainingAttempts !== undefined) {
@@ -222,9 +230,66 @@ export default function QuizComplete() {
         )}
 
         <div className="actions" style={{ justifyContent: "center", marginTop: 20 }}>
-          <button className="btn" onClick={() => nav(`/quiz/${quizId}`)}>
-            Làm lại bài
-          </button>
+          {/* Hiển thị nút/thông báo dựa trên kết quả từ backend hoặc mode */}
+          {saved && resultInfo ? (
+            // Đã có kết quả từ backend
+            resultInfo.canRetry && (resultInfo.retriesUsed < resultInfo.maxRetries) ? (
+              <>
+                <button 
+                  className="btn" 
+                  onClick={() => nav(`/quiz/${quizId}`, { 
+                    state: { 
+                      isRetry: true, 
+                      originalAttemptId: resultInfo.id 
+                    } 
+                  })}
+                >
+                  🔄 Làm lại ({resultInfo.retriesUsed}/{resultInfo.maxRetries})
+                </button>
+                <div style={{ 
+                  fontSize: 13, 
+                  color: '#10b981', 
+                  marginBottom: 10,
+                  textAlign: 'center',
+                  width: '100%'
+                }}>
+                  ✨ Miễn phí làm lại - không trừ lượt
+                </div>
+              </>
+            ) : resultInfo.canRetry === false ? (
+              <div style={{ 
+                fontSize: 14, 
+                color: '#6b7280', 
+                marginBottom: 10,
+                textAlign: 'center',
+                width: '100%'
+              }}>
+                ⏱ Bài Testing không được làm lại
+              </div>
+            ) : null
+          ) : (
+            // Chưa có kết quả từ backend - hiển thị dựa trên mode
+            mode === 'training' && !hasTimeLimit ? (
+              <button 
+                className="btn" 
+                onClick={() => nav(`/quiz/${quizId}`)}
+                disabled={!saved}
+              >
+                🔄 Làm lại bài
+              </button>
+            ) : (
+              <div style={{ 
+                fontSize: 14, 
+                color: '#6b7280', 
+                marginBottom: 10,
+                textAlign: 'center',
+                width: '100%'
+              }}>
+                {saving ? '💾 Đang lưu...' : '⏱ Đang xử lý...'}
+              </div>
+            )
+          )}
+          
           <button 
             className="btn" 
             onClick={() => nav("/quiz-history")}

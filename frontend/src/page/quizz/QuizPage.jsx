@@ -359,7 +359,9 @@ export default function QuizPage() {
       };
     });
 
-    const timeSpentTotal = mode === "testing" ? (TEST_DURATION - (timeLeft || 0)) : 0;
+    // Tính thời gian đã làm bài (nếu có giới hạn thời gian)
+    const quizTimeLimit = data.settings?.timeLimit ? data.settings.timeLimit * 60 : null;
+    const timeSpentTotal = mode === "testing" && quizTimeLimit ? (quizTimeLimit - (timeLeft || 0)) : 0;
     
     const payload = { 
       quizId, 
@@ -371,7 +373,7 @@ export default function QuizPage() {
       totalTimeSpent: timeSpentTotal,
       startedAt: new Date().toISOString(),
       sessionId: sessionId, // Thêm sessionId để track unique session
-      hasTimeLimit: mode === "testing", // Đánh dấu bài có giới hạn thời gian
+      hasTimeLimit: mode === "testing" && !!data.settings?.timeLimit, // Đánh dấu bài có giới hạn thời gian (testing mode)
       isRetry: isRetry, // Truyền retry flag
       originalAttemptId: originalAttemptId, // Truyền original attempt ID
       ts: Date.now(), 

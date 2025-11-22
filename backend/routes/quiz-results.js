@@ -152,8 +152,19 @@ router.post("/submit", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy quiz" });
     }
 
-    // Check if quiz has time limit - use frontend flag or check quiz settings
-    const hasTimeLimitFlag = hasTimeLimit || (quiz.settings?.timeLimit && quiz.settings.timeLimit > 0);
+    // Check if quiz has time limit - ONLY use frontend flag (user's chosen mode)
+    // Training mode: hasTimeLimit = false -> canRetry = true
+    // Testing mode: hasTimeLimit = true -> canRetry = false
+    const hasTimeLimitFlag = hasTimeLimit === true;
+    
+    // DEBUG LOG
+    console.log('🔍 Submit Debug:', {
+      quizId,
+      hasTimeLimit_from_frontend: hasTimeLimit,
+      quizTimeLimit_setting: quiz.settings?.timeLimit,
+      hasTimeLimitFlag_final: hasTimeLimitFlag,
+      canRetry_result: !hasTimeLimitFlag
+    });
     
     // Get user to check remaining attempts
     const user = await User.findById(req.userId);
