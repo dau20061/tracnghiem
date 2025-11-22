@@ -849,6 +849,41 @@
   color: #718096;
 }
 
+/* Retry History Styles */
+.retry-item {
+  border-left: 4px solid var(--brand2);
+}
+
+.retry-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 10px;
+}
+
+.original-comparison {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.original-comparison .improved {
+  color: #059669;
+  font-weight: 600;
+}
+
+.original-comparison .declined {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .quiz-history-container {

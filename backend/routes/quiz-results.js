@@ -2,6 +2,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import QuizResult from "../models/QuizResult.js";
+import RetryHistory from "../models/RetryHistory.js";
 import Quiz from "../models/Quiz.js";
 import User from "../models/User.js";
 
@@ -160,7 +161,12 @@ router.post("/submit", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy user" });
     }
 
-    // If this is a retry, validate
+    // Tính điểm
+    const score = answers.filter(answer => answer.isCorrect).length;
+    const totalQuestions = answers.length;
+    const percentage = Math.round((score / totalQuestions) * 100);
+
+    // If this is a retry
     if (isRetry && originalAttemptId) {
       const originalAttempt = await QuizResult.findOne({
         _id: originalAttemptId,
@@ -180,27 +186,71 @@ router.post("/submit", requireAuth, async (req, res) => {
         return res.status(400).json({ message: "Đã hết số lần làm lại" });
       }
 
-      // Update original attempt's retry count
-      originalAttempt.retriesUsed += 1;
-      await originalAttempt.save();
-    } else {
-      // New attempt - deduct from remaining attempts
+      // *** THAY ĐỔI: Retry cũng trừ lượt ***
       if (user.remainingAttempts <= 0) {
         return res.status(403).json({ 
           message: "Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.",
           code: "NO_ATTEMPTS"
         });
       }
-
-      // Deduct one attempt
       user.remainingAttempts -= 1;
       await user.save();
+
+      // Lưu vào RetryHistory thay vì tạo QuizResult mới
+      const retryHistory = new RetryHistory({
+        userId: req.userId,
+        quizResultId: originalAttemptId,
+        quizId: quizId,
+        quizTitle: quiz.title,
+        score: score,
+        totalQuestions: totalQuestions,
+        percentage: percentage,
+        answers: answers,
+        totalTimeSpent: totalTimeSpent || 0,
+        completedAt: new Date(),
+        retryNumber: originalAttempt.retriesUsed + 1,
+        sessionId: sessionId || `retry-session-${Date.now()}`
+      });
+      await retryHistory.save();
+
+      // Cập nhật bài gốc với kết quả mới nhất
+      originalAttempt.score = score;
+      originalAttempt.percentage = percentage;
+      originalAttempt.answers = answers;
+      originalAttempt.totalTimeSpent = totalTimeSpent || 0;
+      originalAttempt.completedAt = new Date();
+      originalAttempt.retriesUsed += 1;
+      await originalAttempt.save();
+
+      return res.json({
+        message: "Đã lưu kết quả làm lại",
+        result: {
+          id: originalAttempt._id,
+          score: score,
+          totalQuestions: totalQuestions,
+          percentage: percentage,
+          grade: gradeFromPercentage(percentage),
+          timeSpent: formatDuration(totalTimeSpent || 0),
+          canRetry: originalAttempt.canRetry,
+          retriesUsed: originalAttempt.retriesUsed,
+          maxRetries: originalAttempt.maxRetries,
+          isRetry: true
+        },
+        remainingAttempts: user.remainingAttempts
+      });
     }
 
-    // Tính điểm
-    const score = answers.filter(answer => answer.isCorrect).length;
-    const totalQuestions = answers.length;
-    const percentage = Math.round((score / totalQuestions) * 100);
+    // New attempt - deduct from remaining attempts
+    if (user.remainingAttempts <= 0) {
+      return res.status(403).json({ 
+        message: "Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.",
+        code: "NO_ATTEMPTS"
+      });
+    }
+
+    // Deduct one attempt
+    user.remainingAttempts -= 1;
+    await user.save();
 
     // Create new quiz result
     const quizResult = new QuizResult({
@@ -219,7 +269,7 @@ router.post("/submit", requireAuth, async (req, res) => {
       canRetry: !hasTimeLimitFlag, // Cannot retry if quiz has time limit (testing mode)
       retriesUsed: 0,
       maxRetries: 5,
-      originalAttemptId: isRetry ? originalAttemptId : null
+      originalAttemptId: null
     });
 
     await quizResult.save();
@@ -231,8 +281,8 @@ router.post("/submit", requireAuth, async (req, res) => {
         score: score,
         totalQuestions: totalQuestions,
         percentage: percentage,
-        grade: quizResult.grade,
-        timeSpent: quizResult.getFormattedTime(),
+        grade: gradeFromPercentage(percentage),
+        timeSpent: formatDuration(totalTimeSpent || 0),
         canRetry: quizResult.canRetry,
         retriesUsed: quizResult.retriesUsed,
         maxRetries: quizResult.maxRetries
@@ -435,6 +485,113 @@ router.get("/can-retry/:resultId", requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error("Check can retry error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Lấy lịch sử retry của một bài làm cụ thể
+router.get("/retry-history/:resultId", requireAuth, async (req, res) => {
+  try {
+    const originalResult = await QuizResult.findOne({
+      _id: req.params.resultId,
+      userId: req.userId
+    });
+
+    if (!originalResult) {
+      return res.status(404).json({ message: "Không tìm thấy kết quả" });
+    }
+
+    // Lấy tất cả retry history của bài này
+    const retryHistory = await RetryHistory
+      .find({ quizResultId: req.params.resultId })
+      .sort({ retryNumber: 1 })
+      .lean();
+
+    const formattedHistory = retryHistory.map(retry => ({
+      id: retry._id,
+      retryNumber: retry.retryNumber,
+      score: retry.score,
+      totalQuestions: retry.totalQuestions,
+      percentage: retry.percentage,
+      grade: gradeFromPercentage(retry.percentage),
+      totalTimeSpent: retry.totalTimeSpent,
+      formattedTime: formatDuration(retry.totalTimeSpent),
+      completedAt: retry.completedAt,
+      answers: retry.answers
+    }));
+
+    res.json({
+      originalResult: {
+        id: originalResult._id,
+        quizTitle: originalResult.quizTitle,
+        score: originalResult.score,
+        totalQuestions: originalResult.totalQuestions,
+        percentage: originalResult.percentage,
+        grade: gradeFromPercentage(originalResult.percentage),
+        retriesUsed: originalResult.retriesUsed,
+        maxRetries: originalResult.maxRetries
+      },
+      retryHistory: formattedHistory,
+      totalRetries: retryHistory.length
+    });
+  } catch (error) {
+    console.error("Get retry history error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Lấy tất cả lịch sử retry của user (để hiển thị tab riêng)
+router.get("/all-retries", requireAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Lấy tất cả retry history của user
+    const retries = await RetryHistory
+      .find({ userId: req.userId })
+      .sort({ completedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await RetryHistory.countDocuments({ userId: req.userId });
+
+    // Format dữ liệu và lấy thông tin bài gốc
+    const formattedRetries = await Promise.all(
+      retries.map(async (retry) => {
+        const originalResult = await QuizResult.findById(retry.quizResultId).lean();
+        
+        return {
+          id: retry._id,
+          quizId: retry.quizId,
+          quizTitle: retry.quizTitle,
+          score: retry.score,
+          totalQuestions: retry.totalQuestions,
+          percentage: retry.percentage,
+          grade: gradeFromPercentage(retry.percentage),
+          totalTimeSpent: retry.totalTimeSpent,
+          formattedTime: formatDuration(retry.totalTimeSpent),
+          completedAt: retry.completedAt,
+          retryNumber: retry.retryNumber,
+          originalResultId: retry.quizResultId,
+          originalScore: originalResult?.score || 0,
+          originalPercentage: originalResult?.percentage || 0
+        };
+      })
+    );
+
+    res.json({
+      retries: formattedRetries,
+      pagination: {
+        page: page,
+        limit: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error("Get all retries error:", error);
     res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });

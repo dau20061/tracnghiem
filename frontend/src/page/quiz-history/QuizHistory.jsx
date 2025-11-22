@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import './QuizHistory.css';
 const QuizHistory = () => {
   const [history, setHistory] = useState([]);
+  const [retryHistory, setRetryHistory] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
-  const [activeTab, setActiveTab] = useState('history');
+  const [retryPagination, setRetryPagination] = useState(null);
+  const [activeTab, setActiveTab] = useState('original');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -257,6 +259,35 @@ const QuizHistory = () => {
     }
   };
 
+  // Lấy lịch sử làm lại
+  const fetchRetryHistory = async (page = 1) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/quiz-results/all-retries?page=${page}&limit=10`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch retry history');
+      }
+
+      const data = await response.json();
+      setRetryHistory(data.retries);
+      setRetryPagination(data.pagination);
+    } catch (err) {
+      setError('Không thể tải lịch sử làm lại');
+      console.error('Fetch retry history error:', err);
+    }
+  };
+
   // Lấy thống kê
   const fetchStats = async () => {
     try {
@@ -282,15 +313,21 @@ const QuizHistory = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([
-        fetchHistory(currentPage),
-        fetchStats()
-      ]);
+      if (activeTab === 'original') {
+        await Promise.all([
+          fetchHistory(currentPage),
+          fetchStats()
+        ]);
+      } else if (activeTab === 'retries') {
+        await fetchRetryHistory(currentPage);
+      } else if (activeTab === 'stats') {
+        await fetchStats();
+      }
       setLoading(false);
     };
 
     loadData();
-  }, [currentPage]);
+  }, [currentPage, activeTab]);
 
   // Xử lý phân trang
   const handlePageChange = (newPage) => {
@@ -415,10 +452,16 @@ const QuizHistory = () => {
       {/* Tab Navigation */}
       <div className="tab-navigation">
         <button 
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
+          className={`tab-btn ${activeTab === 'original' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('original'); setCurrentPage(1); }}
         >
-          📚 Lịch sử bài thi
+          🆕 Bài làm mới
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'retries' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('retries'); setCurrentPage(1); }}
+        >
+          🔄 Lịch sử làm lại
         </button>
         <button 
           className={`tab-btn ${activeTab === 'stats' ? 'active' : ''}`}
@@ -436,7 +479,7 @@ const QuizHistory = () => {
       )}
 
       {/* Tab Content */}
-      {activeTab === 'history' ? (
+      {activeTab === 'original' ? (
         <div className="history-content">
           {history.length === 0 ? (
             <div className="empty-state">
@@ -538,6 +581,112 @@ const QuizHistory = () => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === pagination.totalPages}
+                    className="page-btn"
+                  >
+                    Sau →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : activeTab === 'retries' ? (
+        <div className="history-content">
+          {retryHistory.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🔄</div>
+              <h3>Chưa có lịch sử làm lại</h3>
+              <p>Các lần làm lại bài thi sẽ được lưu tại đây</p>
+            </div>
+          ) : (
+            <>
+              <div className="history-list">
+                {retryHistory.map((retry) => (
+                  <div key={retry.id} className="history-item retry-item">
+                    <div className="quiz-info">
+                      <h3 className="quiz-title">
+                        {retry.quizTitle}
+                        <span className="retry-badge">Lần {retry.retryNumber}</span>
+                      </h3>
+                      <div className="quiz-meta">
+                        <span className="date">📅 {formatDate(retry.completedAt)}</span>
+                        <span className="time">⏱️ {retry.formattedTime}</span>
+                      </div>
+                      <div className="original-comparison">
+                        <span>Bài gốc: {retry.originalPercentage}%</span>
+                        <span className={retry.percentage >= retry.originalPercentage ? 'improved' : 'declined'}>
+                          {retry.percentage >= retry.originalPercentage ? '📈' : '📉'} 
+                          {retry.percentage >= retry.originalPercentage ? '+' : ''}{retry.percentage - retry.originalPercentage}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="result-info">
+                      <div className="score-section">
+                        <div className="score-number">
+                          {retry.score}/{retry.totalQuestions}
+                        </div>
+                        <div className="percentage">
+                          {retry.percentage}%
+                        </div>
+                      </div>
+                      
+                      <div className={`grade ${getGradeClass(retry.grade)}`}>
+                        {retry.grade}
+                      </div>
+                    </div>
+
+                    <div className="actions">
+                      <button 
+                        className="btn-detail"
+                        onClick={() => viewDetail(retry.originalResultId)}
+                      >
+                        Xem bài gốc
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination for retry history */}
+              {retryPagination && retryPagination.totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="page-btn"
+                  >
+                    ← Trước
+                  </button>
+                  
+                  <div className="page-numbers">
+                    {Array.from({ length: Math.min(5, retryPagination.totalPages) }, (_, i) => {
+                      let page;
+                      if (retryPagination.totalPages <= 5) {
+                        page = i + 1;
+                      } else if (currentPage <= 3) {
+                        page = i + 1;
+                      } else if (currentPage >= retryPagination.totalPages - 2) {
+                        page = retryPagination.totalPages - 4 + i;
+                      } else {
+                        page = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === retryPagination.totalPages}
                     className="page-btn"
                   >
                     Sau →

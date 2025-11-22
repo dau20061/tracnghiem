@@ -76,7 +76,7 @@ export default function QuizComplete() {
       const originalAttemptId = locationState?.originalAttemptId || null;
       
       // Get hasTimeLimit from location state or result state
-      const hasTimeLimit = locationState?.hasTimeLimit || state?.hasTimeLimit || false;
+      const hasTimeLimit = locationState?.hasTimeLimit || fromState?.hasTimeLimit || fromStore?.hasTimeLimit || false;
 
       const payload = {
         quizId: quizId,
