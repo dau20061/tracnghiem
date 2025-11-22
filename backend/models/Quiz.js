@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const OptionSchema = new mongoose.Schema({
   id:   { type: String, required: true },  // "A" | "B" | ...
-  text: { type: String, required: true },
+  text: { type: String, default: "" }, // Not required - will be validated by question type
 }, { _id: false });
 
 const BinaryItemSchema = new mongoose.Schema({
@@ -58,6 +58,12 @@ QuestionSchema.path("type").validate(function () {
   const t = this.type;
   if (t === "single" || t === "image_single") {
     if (!Array.isArray(this.options) || typeof this.correct !== "string") return false;
+    // Validate options have text for non-image types
+    if (t === "single") {
+      for (const opt of this.options) {
+        if (!opt.text || opt.text.trim() === "") return false;
+      }
+    }
   }
   if (t === "image_grid") {
     // image grid expects an options array of 4 image URLs and a string correct id
@@ -66,6 +72,10 @@ QuestionSchema.path("type").validate(function () {
   }
   if (t === "multi") {
     if (!Array.isArray(this.options) || !Array.isArray(this.correct) || this.correct.length < 2) return false;
+    // Validate options have text
+    for (const opt of this.options) {
+      if (!opt.text || opt.text.trim() === "") return false;
+    }
   }
   if (t === "binary") {
     if (!Array.isArray(this.columns) || this.columns.length !== 2) return false;
