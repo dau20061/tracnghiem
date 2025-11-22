@@ -25,6 +25,10 @@ const UserSchema = new mongoose.Schema(
     isDisabled: { type: Boolean, default: false },
     totalPurchasedMs: { type: Number, default: 0 },
     
+    // Attempts-based system (new)
+    remainingAttempts: { type: Number, default: 0 }, // Số lượt làm bài còn lại
+    totalPurchasedAttempts: { type: Number, default: 0 }, // Tổng số lượt đã mua
+    
     // OTP verification fields
     isVerified: { type: Boolean, default: false },
     verificationOTP: { type: String, default: null },

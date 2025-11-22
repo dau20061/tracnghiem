@@ -15,6 +15,7 @@ const QuizHistory = () => {
   const [selectedResult, setSelectedResult] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [remainingAttempts, setRemainingAttempts] = useState(0);
   const navigate = useNavigate();
 
   const getOptionLabel = (question, optionId) => {
@@ -249,6 +250,7 @@ const QuizHistory = () => {
       const data = await response.json();
       setHistory(data.results);
       setPagination(data.pagination);
+      setRemainingAttempts(data.remainingAttempts || 0);
     } catch (err) {
       setError('Không thể tải lịch sử làm bài');
       console.error('Fetch history error:', err);
@@ -362,6 +364,22 @@ const QuizHistory = () => {
     setDetailError('');
   };
 
+  // Retry quiz handler
+  const handleRetry = (result) => {
+    if (!result.canRetryNow) {
+      setError('Bài này không thể làm lại hoặc đã hết số lần làm lại');
+      return;
+    }
+
+    // Navigate to quiz page with retry info
+    navigate(`/quiz/${result.quizId}`, {
+      state: {
+        isRetry: true,
+        originalAttemptId: result.id
+      }
+    });
+  };
+
   if (loading) {
     return (
       <div className="quiz-history-container">
@@ -387,6 +405,11 @@ const QuizHistory = () => {
           </button>
         </div>
         <p>Theo dõi tiến độ học tập và kết quả của bạn</p>
+        <div className="attempts-info">
+          <span className="attempts-badge">
+            🎯 Lượt làm bài còn lại: <strong>{remainingAttempts}</strong>
+          </span>
+        </div>
       </div>
 
       {/* Tab Navigation */}
@@ -462,6 +485,15 @@ const QuizHistory = () => {
                       >
                         Chi tiết
                       </button>
+                      {result.canRetryNow && (
+                        <button 
+                          className="btn-retry"
+                          onClick={() => handleRetry(result)}
+                          title={`Còn ${result.maxRetries - result.retriesUsed} lần làm lại`}
+                        >
+                          🔄 Làm lại ({result.maxRetries - result.retriesUsed})
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

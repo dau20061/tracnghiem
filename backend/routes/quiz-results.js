@@ -135,7 +135,9 @@ router.post("/submit", requireAuth, async (req, res) => {
       answers, // Array of { questionId, userAnswer, isCorrect, timeSpent }
       totalTimeSpent, 
       startedAt,
-      sessionId // Thêm sessionId để track unique session
+      sessionId, // Thêm sessionId để track unique session
+      isRetry, // Đánh dấu nếu đây là lần làm lại
+      originalAttemptId // ID của lần làm gốc nếu là retry
     } = req.body;
 
     if (!quizId || !answers || !Array.isArray(answers)) {
@@ -148,48 +150,78 @@ router.post("/submit", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy quiz" });
     }
 
+    // Check if quiz has time limit (cannot retry if timed)
+    const hasTimeLimit = quiz.settings?.timeLimit && quiz.settings.timeLimit > 0;
+    
+    // Get user to check remaining attempts
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+
+    // If this is a retry, validate
+    if (isRetry && originalAttemptId) {
+      const originalAttempt = await QuizResult.findOne({
+        _id: originalAttemptId,
+        userId: req.userId,
+        quizId: quizId
+      });
+
+      if (!originalAttempt) {
+        return res.status(404).json({ message: "Không tìm thấy lần làm gốc" });
+      }
+
+      if (!originalAttempt.canRetry) {
+        return res.status(400).json({ message: "Bài này không thể làm lại" });
+      }
+
+      if (originalAttempt.retriesUsed >= originalAttempt.maxRetries) {
+        return res.status(400).json({ message: "Đã hết số lần làm lại" });
+      }
+
+      // Update original attempt's retry count
+      originalAttempt.retriesUsed += 1;
+      await originalAttempt.save();
+    } else {
+      // New attempt - deduct from remaining attempts
+      if (user.remainingAttempts <= 0) {
+        return res.status(403).json({ 
+          message: "Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.",
+          code: "NO_ATTEMPTS"
+        });
+      }
+
+      // Deduct one attempt
+      user.remainingAttempts -= 1;
+      await user.save();
+    }
+
     // Tính điểm
     const score = answers.filter(answer => answer.isCorrect).length;
     const totalQuestions = answers.length;
     const percentage = Math.round((score / totalQuestions) * 100);
 
-    // Sử dụng findOneAndUpdate với upsert để tránh duplicate
-    // Nếu có sessionId thì dùng nó, nếu không thì dùng thời gian
-    let findCondition = {
+    // Create new quiz result
+    const quizResult = new QuizResult({
       userId: req.userId,
-      quizId: quizId
-    };
+      quizId: quizId,
+      quizTitle: quiz.title,
+      score: score,
+      totalQuestions: totalQuestions,
+      percentage: percentage,
+      answers: answers,
+      totalTimeSpent: totalTimeSpent || 0,
+      startedAt: startedAt ? new Date(startedAt) : new Date(),
+      completedAt: new Date(),
+      status: 'completed',
+      sessionId: sessionId || `session-${Date.now()}`,
+      canRetry: !hasTimeLimit, // Cannot retry if quiz has time limit
+      retriesUsed: 0,
+      maxRetries: 5,
+      originalAttemptId: isRetry ? originalAttemptId : null
+    });
 
-    if (sessionId) {
-      // Thêm sessionId vào condition nếu có
-      findCondition.sessionId = sessionId;
-    } else {
-      // Fallback: tìm trong vòng 2 phút
-      findCondition.completedAt = { $gte: new Date(Date.now() - 2 * 60 * 1000) };
-    }
-    
-    const quizResult = await QuizResult.findOneAndUpdate(
-      findCondition,
-      {
-        userId: req.userId,
-        quizId: quizId,
-        quizTitle: quiz.title,
-        score: score,
-        totalQuestions: totalQuestions,
-        percentage: percentage,
-        answers: answers,
-        totalTimeSpent: totalTimeSpent || 0,
-        startedAt: startedAt ? new Date(startedAt) : new Date(),
-        completedAt: new Date(),
-        status: 'completed',
-        sessionId: sessionId || `fallback-${Date.now()}`
-      },
-      { 
-        upsert: true, 
-        new: true,
-        runValidators: true
-      }
-    );
+    await quizResult.save();
 
     res.json({
       message: "Đã lưu kết quả",
@@ -199,8 +231,12 @@ router.post("/submit", requireAuth, async (req, res) => {
         totalQuestions: totalQuestions,
         percentage: percentage,
         grade: quizResult.grade,
-        timeSpent: quizResult.getFormattedTime()
-      }
+        timeSpent: quizResult.getFormattedTime(),
+        canRetry: quizResult.canRetry,
+        retriesUsed: quizResult.retriesUsed,
+        maxRetries: quizResult.maxRetries
+      },
+      remainingAttempts: user.remainingAttempts
     });
   } catch (error) {
     console.error("Submit quiz result error:", error);
@@ -214,6 +250,9 @@ router.get("/history", requireAuth, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+
+    // Get user to include remaining attempts
+    const user = await User.findById(req.userId);
 
     // Lấy kết quả với phân trang
     const results = await QuizResult
@@ -238,7 +277,12 @@ router.get("/history", requireAuth, async (req, res) => {
       totalTimeSpent: result.totalTimeSpent,
       formattedTime: `${Math.floor(result.totalTimeSpent / 60)}:${(result.totalTimeSpent % 60).toString().padStart(2, '0')}`,
       completedAt: result.completedAt,
-      createdAt: result.createdAt
+      createdAt: result.createdAt,
+      // Retry information
+      canRetry: result.canRetry || false,
+      retriesUsed: result.retriesUsed || 0,
+      maxRetries: result.maxRetries || 5,
+      canRetryNow: (result.canRetry && (result.retriesUsed || 0) < (result.maxRetries || 5))
     }));
 
     res.json({
@@ -248,7 +292,8 @@ router.get("/history", requireAuth, async (req, res) => {
         limit: limit,
         total: total,
         totalPages: Math.ceil(total / limit)
-      }
+      },
+      remainingAttempts: user?.remainingAttempts || 0
     });
   } catch (error) {
     console.error("Get quiz history error:", error);
@@ -344,6 +389,51 @@ router.delete("/result/:resultId", requireAuth, async (req, res) => {
     res.json({ message: "Đã xóa kết quả" });
   } catch (error) {
     console.error("Delete quiz result error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Get user's remaining attempts
+router.get("/attempts", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+
+    res.json({
+      remainingAttempts: user.remainingAttempts || 0,
+      totalPurchasedAttempts: user.totalPurchasedAttempts || 0
+    });
+  } catch (error) {
+    console.error("Get attempts error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// Check if user can retry a specific quiz result
+router.get("/can-retry/:resultId", requireAuth, async (req, res) => {
+  try {
+    const result = await QuizResult.findOne({
+      _id: req.params.resultId,
+      userId: req.userId
+    });
+
+    if (!result) {
+      return res.status(404).json({ message: "Không tìm thấy kết quả" });
+    }
+
+    const canRetryNow = result.canRetry && (result.retriesUsed || 0) < (result.maxRetries || 5);
+
+    res.json({
+      canRetry: result.canRetry,
+      retriesUsed: result.retriesUsed || 0,
+      maxRetries: result.maxRetries || 5,
+      canRetryNow: canRetryNow,
+      retriesRemaining: canRetryNow ? (result.maxRetries || 5) - (result.retriesUsed || 0) : 0
+    });
+  } catch (error) {
+    console.error("Check can retry error:", error);
     res.status(500).json({ message: "Lỗi máy chủ" });
   }
 });

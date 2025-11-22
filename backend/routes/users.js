@@ -70,6 +70,8 @@ const sanitizeUser = (user) => ({
   isVerified: !!user.isVerified,
   accountStatus: user.accountStatus || "pending",
   totalPurchasedMs: resolveTotalPurchased(user),
+  remainingAttempts: user.remainingAttempts || 0,
+  totalPurchasedAttempts: user.totalPurchasedAttempts || 0,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

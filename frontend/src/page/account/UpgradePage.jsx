@@ -6,25 +6,28 @@ import "./upgrade.css";
 const plans = [
   {
     id: "day",
-    title: "Gói 1 ngày",
-    subtitle: "Truy cập mọi bài trong 24 giờ",
+    title: "Gói 3 lượt",
+    subtitle: "3 lượt làm bài, mỗi lượt làm lại 5 lần",
     price: "29.000đ",
     highlight: "Khởi động nhanh",
+    attempts: 3,
   },
   {
     id: "month",
-    title: "Gói 1 tháng",
-    subtitle: "Không giới hạn bài trong 30 ngày",
+    title: "Gói 20 lượt",
+    subtitle: "20 lượt làm bài, mỗi lượt làm lại 5 lần",
     price: "149.000đ",
     highlight: "Phổ biến",
     tag: "Best Value",
+    attempts: 20,
   },
   {
     id: "year",
-    title: "Gói 1 năm",
-    subtitle: "Tiết kiệm nhất cho học dài hạn",
+    title: "Gói 200 lượt",
+    subtitle: "200 lượt làm bài, mỗi lượt làm lại 5 lần",
     price: "1.390.000đ",
-    highlight: "Full access",
+    highlight: "Tiết kiệm nhất",
+    attempts: 200,
   },
 ];
 
@@ -110,9 +113,9 @@ export default function UpgradePage() {
             <p className="plan-sub">{plan.subtitle}</p>
             <div className="plan-price">{plan.price}</div>
             <ul className="plan-list">
-              <li>✔ Toàn bộ đề thi & quiz</li>
+              <li>✔ {plan.attempts} lượt làm bài</li>
+              <li>✔ Mỗi lượt làm lại 5 lần (bài không giới hạn thời gian)</li>
               <li>✔ Theo dõi tiến độ chi tiết</li>
-              <li>✔ Hỗ trợ ưu tiên</li>
               <li>✔ {plan.highlight}</li>
             </ul>
             <button

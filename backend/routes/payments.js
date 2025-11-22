@@ -10,9 +10,9 @@ import emailService from "../services/emailService.js";
 const router = Router();
 
 const PLAN_CONFIG = {
-  day: { amount: 29000, label: "Gói 1 ngày" },
-  month: { amount: 149000, label: "Gói 1 tháng" },
-  year: { amount: 1390000, label: "Gói 1 năm" },
+  day: { amount: 29000, label: "Gói 3 lượt", attempts: 3 },
+  month: { amount: 149000, label: "Gói 20 lượt", attempts: 20 },
+  year: { amount: 1390000, label: "Gói 200 lượt", attempts: 200 },
 };
 
 // ZaloPay Configuration
@@ -216,11 +216,20 @@ router.post('/zalopay/callback', async (req, res) => {
             const user = await User.findById(userId);
             if (user) {
               console.log('Updating user membership:', user.email);
-              const { expiresAt, addedMs } = addDuration(plan, user.membershipExpiresAt);
-              user.membershipLevel = plan;
-              user.membershipExpiresAt = expiresAt;
-              user.totalPurchasedMs = (user.totalPurchasedMs || 0) + addedMs;
-              await user.save();
+              const planInfo = PLAN_CONFIG[plan];
+              
+              // Add attempts instead of time-based membership
+              if (planInfo && planInfo.attempts) {
+                user.remainingAttempts = (user.remainingAttempts || 0) + planInfo.attempts;
+                user.totalPurchasedAttempts = (user.totalPurchasedAttempts || 0) + planInfo.attempts;
+                user.membershipLevel = plan;
+                // Still set expiry for display/tracking purposes
+                const { expiresAt, addedMs } = addDuration(plan, user.membershipExpiresAt);
+                user.membershipExpiresAt = expiresAt;
+                user.totalPurchasedMs = (user.totalPurchasedMs || 0) + addedMs;
+                await user.save();
+                console.log(`User attempts updated: +${planInfo.attempts}, total: ${user.remainingAttempts}`);
+              }
               console.log('User membership updated successfully');
               
               // Gửi email thông báo thanh toán thành công
@@ -397,9 +406,14 @@ router.post("/zalopay/simulate/:appTransId", requireUser, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy user" });
     }
     
-    // Update user membership
-    const { expiresAt, addedMs } = addDuration(trx.plan, user.membershipExpiresAt);
+    // Update user membership with attempts
+    const planInfo = PLAN_CONFIG[trx.plan];
+    if (planInfo && planInfo.attempts) {
+      user.remainingAttempts = (user.remainingAttempts || 0) + planInfo.attempts;
+      user.totalPurchasedAttempts = (user.totalPurchasedAttempts || 0) + planInfo.attempts;
+    }
     user.membershipLevel = trx.plan;
+    const { expiresAt, addedMs } = addDuration(trx.plan, user.membershipExpiresAt);
     user.membershipExpiresAt = expiresAt;
     user.totalPurchasedMs = (user.totalPurchasedMs || 0) + addedMs;
     await user.save();

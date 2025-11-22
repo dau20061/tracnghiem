@@ -1,5 +1,6 @@
 // src/page/quiz/QuizPage.jsx
-import React, { useEffect, useRef, useState } from "react";import { API_URL } from '../../config/api';
+import React, { useEffect, useRef, useState } from "react";
+import { API_URL } from '../../config/api';
 
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "./quiz.css";
@@ -53,6 +54,9 @@ export default function QuizPage() {
 
   const isMembershipActive = (u) => {
     if (!u) return false;
+    // Check if user has remaining attempts
+    if (u.remainingAttempts && u.remainingAttempts > 0) return true;
+    // Fallback to old time-based check
     if (u.membershipLevel === "free") return false;
     if (!u.membershipExpiresAt) return false;
     return new Date(u.membershipExpiresAt) > new Date();
@@ -69,7 +73,11 @@ export default function QuizPage() {
           setLockReason("");
         } else {
           setLocked(true);
-          setLockReason("Tài khoản của bạn hiện chưa nâng cấp.");
+          if (parsed.remainingAttempts === 0) {
+            setLockReason("Bạn đã hết lượt làm bài. Vui lòng nâng cấp.");
+          } else {
+            setLockReason("Tài khoản của bạn hiện chưa nâng cấp.");
+          }
         }
       } catch (_) {
         // ignore parse error

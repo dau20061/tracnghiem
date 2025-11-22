@@ -70,12 +70,19 @@ export default function QuizComplete() {
         timeSpent: answer.timeSpent || 0
       }));
 
+      // Check if this is a retry from location state
+      const locationState = window.history.state?.usr;
+      const isRetry = locationState?.isRetry || false;
+      const originalAttemptId = locationState?.originalAttemptId || null;
+
       const payload = {
         quizId: quizId,
         answers: formattedAnswers,
         totalTimeSpent: totalTimeSpent,
         startedAt: startedAt || new Date().toISOString(),
-        sessionId: sessionId // Thêm sessionId vào payload
+        sessionId: sessionId, // Thêm sessionId vào payload
+        isRetry: isRetry, // Thêm isRetry flag
+        originalAttemptId: originalAttemptId // Thêm ID của lần làm gốc nếu có
       };
 
       const response = await fetch(`${API_URL}/api/quiz-results/submit`, {
@@ -90,9 +97,22 @@ export default function QuizComplete() {
       if (response.ok) {
         setSaved(true);
         sessionStorage.setItem(sessionKey, 'true');
+        const result = await response.json();
         console.log('✅ Quiz result saved successfully');
+        
+        // Show remaining attempts if provided
+        if (result.remainingAttempts !== undefined) {
+          console.log(`📊 Remaining attempts: ${result.remainingAttempts}`);
+        }
       } else {
-        console.error('❌ Failed to save quiz result:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle no attempts error
+        if (errorData.code === 'NO_ATTEMPTS') {
+          alert('Bạn đã hết lượt làm bài. Vui lòng nâng cấp để tiếp tục.');
+        }
+        
+        console.error('❌ Failed to save quiz result:', response.status, errorData);
         setSaveAttempted(false); // Reset nếu failed để có thể retry
       }
     } catch (error) {

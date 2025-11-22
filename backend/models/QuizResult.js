@@ -44,6 +44,12 @@ const QuizResultSchema = new mongoose.Schema({
   
   // Session ID để track unique quiz sessions
   sessionId: { type: String },
+  
+  // Retry tracking for non-timed quizzes
+  retriesUsed: { type: Number, default: 0 }, // Số lần đã làm lại
+  maxRetries: { type: Number, default: 5 }, // Tối đa 5 lần làm lại
+  canRetry: { type: Boolean, default: true }, // Có thể làm lại không (false nếu quiz có thời gian)
+  originalAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'QuizResult' }, // Liên kết đến lần làm gốc
 }, { 
   timestamps: true 
 });
