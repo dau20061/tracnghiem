@@ -75,7 +75,8 @@ const QuizSchema = new mongoose.Schema({
   _id:      { type: String, required: true }, 
   title:    { type: String, required: true },
   settings: {
-    immediateFeedback: { type: Boolean, default: false }
+    immediateFeedback: { type: Boolean, default: false },
+    timeLimit: { type: Number, default: null } // Thời gian làm bài (phút), null = không giới hạn
   },
   questions: { type: [QuestionSchema], required: true }
 }, { timestamps: true });
