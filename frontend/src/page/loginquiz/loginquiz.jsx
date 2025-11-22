@@ -204,6 +204,20 @@ export default function LoginPage() {
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
           </button>
+
+          {/* Link quên mật khẩu - chỉ hiện ở mode login và cho user */}
+          {allowRegister && mode === "login" && (
+            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+              <button
+                type="button"
+                className="btn-switch"
+                onClick={() => navigate('/forgot-password')}
+                style={{ fontSize: '13px', color: '#667eea' }}
+              >
+                🔐 Quên mật khẩu?
+              </button>
+            </div>
+          )}
         </form>
 
         <div className="foot">

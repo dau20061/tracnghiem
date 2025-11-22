@@ -480,6 +480,118 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// FORGOT PASSWORD - Gửi OTP đến email (không cần đăng nhập)
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: "Vui lòng nhập email" });
+    }
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ message: "Email không hợp lệ" });
+    }
+    
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      // Không tiết lộ email có tồn tại hay không (bảo mật)
+      return res.json({ 
+        message: "Nếu email tồn tại trong hệ thống, bạn sẽ nhận được mã OTP để đổi mật khẩu" 
+      });
+    }
+    
+    if (user.isDisabled) {
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa" });
+    }
+    
+    // Tạo OTP mới
+    const otp = generateOtp();
+    const otpExpiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS); // 10 phút
+    
+    user.passwordResetOTP = otp;
+    user.passwordResetExpiresAt = otpExpiresAt;
+    await user.save();
+    
+    console.log(`🔐 Forgot Password OTP for ${user.username} (${user.email}): ${otp}`);
+    
+    // Gửi email OTP
+    try {
+      const result = await emailService.sendPasswordResetOTPEmail(user.email, user.username, otp);
+      if (result.success) {
+        console.log(`✅ Password reset OTP sent to ${user.email}`);
+      } else {
+        console.error(`⚠️ Failed to send OTP email but user can still use: ${otp}`);
+      }
+    } catch (emailError) {
+      console.error("❌ Email service error:", emailError.message);
+      console.error(`⚠️ IMPORTANT - Password Reset OTP for ${user.username}: ${otp}`);
+    }
+    
+    return res.json({ 
+      message: "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã trong vòng 10 phút.",
+      email: user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') // Ẩn một phần email
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
+// RESET PASSWORD - Xác thực OTP và đổi mật khẩu (không cần đăng nhập)
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body || {};
+    
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: "Thiếu thông tin: email, OTP hoặc mật khẩu mới" });
+    }
+    
+    if (typeof newPassword !== "string" || newPassword.length < 6) {
+      return res.status(400).json({ message: "Mật khẩu phải tối thiểu 6 ký tự" });
+    }
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    
+    if (!user) {
+      return res.status(404).json({ message: "Email không tồn tại trong hệ thống" });
+    }
+    
+    if (user.isDisabled) {
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa" });
+    }
+    
+    if (!user.passwordResetOTP || !user.passwordResetExpiresAt) {
+      return res.status(400).json({ message: "Vui lòng yêu cầu mã OTP trước" });
+    }
+    
+    if (new Date() > user.passwordResetExpiresAt) {
+      return res.status(400).json({ message: "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới" });
+    }
+    
+    if (user.passwordResetOTP !== otp) {
+      return res.status(401).json({ message: "Mã OTP không chính xác" });
+    }
+    
+    // Đổi mật khẩu
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordResetOTP = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+    
+    console.log(`✅ Password reset successful for ${user.username}`);
+    
+    return res.json({ 
+      message: "Đổi mật khẩu thành công! Vui lòng đăng nhập lại với mật khẩu mới.",
+      success: true
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Không thể đổi mật khẩu. Vui lòng thử lại" });
+  }
+});
+
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.userId);

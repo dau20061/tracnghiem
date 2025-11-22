@@ -27,6 +27,7 @@ import PaymentWaiting from "./page/payment/PaymentWaiting";
 import SupportChat from "./shared/SupportChat";
 import VerifyOTP from "./page/verify-otp/VerifyOTP";
 import ProfilePage from "./page/profile/ProfilePage";
+import ForgotPassword from "./page/forgot-password/ForgotPassword";
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/practice" element={<IC3Dashboard/>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/payment/zalopay/result" element={<ZaloPayResult />} />
         <Route path="/payment/check" element={<PaymentCheck />} />
         <Route path="/payment/waiting" element={<PaymentWaiting />} />
