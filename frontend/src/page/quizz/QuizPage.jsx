@@ -350,6 +350,7 @@ export default function QuizPage() {
       totalTimeSpent: timeSpentTotal,
       startedAt: new Date().toISOString(),
       sessionId: sessionId, // Thêm sessionId để track unique session
+      hasTimeLimit: mode === "testing", // Đánh dấu bài có giới hạn thời gian
       ts: Date.now(), 
       mode, 
       autoByTime 

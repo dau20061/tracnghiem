@@ -135,7 +135,10 @@ export default function UserBadge() {
             <div className="meta-name">{user.username}</div>
             {user.email && <div className="meta-plan">{user.email}</div>}
             <div className="meta-duration">
-              Tổng thời gian đã mua: {formatPurchasedDuration(user.totalPurchasedMs)}
+              🎯 Lượt làm bài còn lại: <strong>{user.remainingAttempts || 0}</strong>
+            </div>
+            <div className="meta-plan-info" style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+              Tổng đã mua: {user.totalPurchasedAttempts || 0} lượt
             </div>
             {user.isDisabled && <div className="meta-disabled">Tài khoản đang bị vô hiệu hóa</div>}
           </div>

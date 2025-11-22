@@ -74,6 +74,9 @@ export default function QuizComplete() {
       const locationState = window.history.state?.usr;
       const isRetry = locationState?.isRetry || false;
       const originalAttemptId = locationState?.originalAttemptId || null;
+      
+      // Get hasTimeLimit from location state or result state
+      const hasTimeLimit = locationState?.hasTimeLimit || state?.hasTimeLimit || false;
 
       const payload = {
         quizId: quizId,
@@ -82,7 +85,8 @@ export default function QuizComplete() {
         startedAt: startedAt || new Date().toISOString(),
         sessionId: sessionId, // Thêm sessionId vào payload
         isRetry: isRetry, // Thêm isRetry flag
-        originalAttemptId: originalAttemptId // Thêm ID của lần làm gốc nếu có
+        originalAttemptId: originalAttemptId, // Thêm ID của lần làm gốc nếu có
+        hasTimeLimit: hasTimeLimit // Thêm flag để backend biết quiz có giới hạn thời gian
       };
 
       const response = await fetch(`${API_URL}/api/quiz-results/submit`, {

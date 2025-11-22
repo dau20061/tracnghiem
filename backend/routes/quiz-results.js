@@ -137,7 +137,8 @@ router.post("/submit", requireAuth, async (req, res) => {
       startedAt,
       sessionId, // Thêm sessionId để track unique session
       isRetry, // Đánh dấu nếu đây là lần làm lại
-      originalAttemptId // ID của lần làm gốc nếu là retry
+      originalAttemptId, // ID của lần làm gốc nếu là retry
+      hasTimeLimit // Flag từ frontend để biết quiz có giới hạn thời gian (mode: testing)
     } = req.body;
 
     if (!quizId || !answers || !Array.isArray(answers)) {
@@ -150,8 +151,8 @@ router.post("/submit", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy quiz" });
     }
 
-    // Check if quiz has time limit (cannot retry if timed)
-    const hasTimeLimit = quiz.settings?.timeLimit && quiz.settings.timeLimit > 0;
+    // Check if quiz has time limit - use frontend flag or check quiz settings
+    const hasTimeLimitFlag = hasTimeLimit || (quiz.settings?.timeLimit && quiz.settings.timeLimit > 0);
     
     // Get user to check remaining attempts
     const user = await User.findById(req.userId);
@@ -215,7 +216,7 @@ router.post("/submit", requireAuth, async (req, res) => {
       completedAt: new Date(),
       status: 'completed',
       sessionId: sessionId || `session-${Date.now()}`,
-      canRetry: !hasTimeLimit, // Cannot retry if quiz has time limit
+      canRetry: !hasTimeLimitFlag, // Cannot retry if quiz has time limit (testing mode)
       retriesUsed: 0,
       maxRetries: 5,
       originalAttemptId: isRetry ? originalAttemptId : null
