@@ -457,6 +457,12 @@ export default function QuizPage() {
           return userAnswer.mapping[targetId] === correctMapping[targetId];
         });
       
+      case 'coordinate':
+        // CoordinateQuestion sends { correct: boolean, foundCount: number, totalCount: number }
+        // Consider it correct if user found all required coordinates
+        return userAnswer.correct === true && 
+               userAnswer.foundCount === userAnswer.totalCount;
+      
       default:
         return false;
     }
@@ -495,6 +501,13 @@ export default function QuizPage() {
             break;
           case 'dragdrop':
             answerData = userAnswer.mapping;
+            break;
+          case 'coordinate':
+            answerData = {
+              foundCount: userAnswer.foundCount,
+              totalCount: userAnswer.totalCount,
+              foundIndices: userAnswer.foundIndices
+            };
             break;
           default:
             answerData = userAnswer.selected || userAnswer.value;
@@ -656,7 +669,7 @@ function Question({ q, index, immediate, onAnswered }) {
         <span className="badge">{index}</span>
         <div>
           <div className="prompt">{q.prompt}</div>
-          {q.image && (
+          {q.image && q.type !== "coordinate" && (
             <div className="img-wrap">
               <img src={q.image} alt="question" />
             </div>
@@ -974,9 +987,8 @@ function DragDropTargets({ q, onAnswered }) {
 
 /* ========== Loại 6: Tìm tọa độ đúng trên hình ảnh ========== */
 function CoordinateQuestion({ q, immediate, onAnswered }) {
-  const [clickPosition, setClickPosition] = useState(null);
-  const [isCorrect, setIsCorrect] = useState(null);
-  const [matchedCoordIndex, setMatchedCoordIndex] = useState(null);
+  const [foundCoordinates, setFoundCoordinates] = useState(new Set()); // Track found coordinate indices
+  const [lastClick, setLastClick] = useState(null); // Store last click for red marker
   const imageRef = useRef(null);
 
   const calculateDistance = (x1, y1, x2, y2) => {
@@ -987,42 +999,59 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
     if (!imageRef.current) return;
     
     const rect = imageRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100; // Convert to percentage
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     
-    setClickPosition({ x, y });
-    
-    // Check if click is within radius of any correct position
     const correctCoords = q.correctCoordinates || [];
-    let matched = false;
     let matchedIndex = null;
     
+    // Check if click matches any coordinate that hasn't been found yet
     for (let i = 0; i < correctCoords.length; i++) {
+      if (foundCoordinates.has(i)) continue; // Skip already found
+      
       const coord = correctCoords[i];
       const distance = calculateDistance(x, y, coord.x, coord.y);
       const radius = coord.radius || 30;
       const radiusPercent = (radius / rect.width) * 100;
       
       if (distance <= radiusPercent) {
-        matched = true;
         matchedIndex = i;
         break;
       }
     }
     
-    setIsCorrect(matched);
-    setMatchedCoordIndex(matchedIndex);
-    onAnswered?.({ correct: matched, clickedPosition: { x, y }, matchedIndex });
+    if (matchedIndex !== null) {
+      // Found a new correct coordinate
+      const newFound = new Set(foundCoordinates);
+      newFound.add(matchedIndex);
+      setFoundCoordinates(newFound);
+      setLastClick(null); // Clear wrong marker
+      
+      // Check if all coordinates are found
+      const allFound = newFound.size === correctCoords.length;
+      onAnswered?.({ 
+        correct: allFound, 
+        foundCount: newFound.size,
+        totalCount: correctCoords.length,
+        foundIndices: Array.from(newFound)
+      });
+    } else {
+      // Wrong click - show red marker temporarily
+      setLastClick({ x, y, correct: false });
+      if (immediate) {
+        setTimeout(() => setLastClick(null), 1500); // Clear after 1.5s
+      }
+    }
   };
 
   return (
     <>
       <div className="coordinate-container">
         <div className="coordinate-image-wrapper" style={{ position: 'relative', cursor: 'crosshair' }}>
-          <img 
+          <img
             ref={imageRef}
-            src={q.image} 
-            alt="coordinate question" 
+            src={q.image}
+            alt="coordinate question"
             onClick={handleImageClick}
             style={{ 
               width: '100%', 
@@ -1030,61 +1059,111 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
               userSelect: 'none'
             }}
           />
-          {clickPosition && (
+          {/* Green markers for found coordinates */}
+          {(q.correctCoordinates || []).map((coord, idx) => {
+            if (!foundCoordinates.has(idx)) return null;
+            return (
+              <div 
+                key={`found-${idx}`}
+                className="coordinate-marker"
+                style={{
+                  position: 'absolute',
+                  left: `${coord.x}%`,
+                  top: `${coord.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#22c55e',
+                  border: '3px solid white',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                  animation: 'markerPop 0.3s ease-out'
+                }}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: '-22px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: '#22c55e',
+                  color: 'white',
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap'
+                }}>
+                  ✓ {idx + 1}
+                </span>
+              </div>
+            );
+          })}
+          
+          {/* Red marker for wrong click */}
+          {lastClick && !lastClick.correct && (
             <div 
               className="coordinate-marker"
               style={{
                 position: 'absolute',
-                left: `${clickPosition.x}%`,
-                top: `${clickPosition.y}%`,
+                left: `${lastClick.x}%`,
+                top: `${lastClick.y}%`,
                 transform: 'translate(-50%, -50%)',
                 width: '20px',
                 height: '20px',
                 borderRadius: '50%',
-                backgroundColor: isCorrect ? '#22c55e' : '#ef4444',
+                backgroundColor: '#ef4444',
                 border: '3px solid white',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                 zIndex: 10,
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                animation: 'markerPop 0.3s ease-out'
               }}
             />
           )}
-          {immediate && isCorrect === false && (q.correctCoordinates || []).map((coord, idx) => (
-            <div 
-              key={idx}
-              className="coordinate-correct-marker"
-              style={{
-                position: 'absolute',
-                left: `${coord.x}%`,
-                top: `${coord.y}%`,
-                transform: 'translate(-50%, -50%)',
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                backgroundColor: '#22c55e',
-                border: '3px solid #fff',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                zIndex: 9,
-                pointerEvents: 'none',
-                animation: 'pulse 1.5s infinite'
-              }}
-            >
-              <span style={{
-                position: 'absolute',
-                top: '-20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: '#22c55e',
-                color: 'white',
-                fontSize: '10px',
-                padding: '2px 5px',
-                borderRadius: '3px',
-                fontWeight: 'bold'
-              }}>
-                {idx + 1}
-              </span>
-            </div>
-          ))}
+          
+          {/* Show remaining unfound coordinates in immediate feedback mode when wrong click */}
+          {immediate && lastClick && !lastClick.correct && (q.correctCoordinates || []).map((coord, idx) => {
+            if (foundCoordinates.has(idx)) return null; // Don't show already found
+            return (
+              <div 
+                key={`hint-${idx}`}
+                className="coordinate-correct-marker"
+                style={{
+                  position: 'absolute',
+                  left: `${coord.x}%`,
+                  top: `${coord.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#f59e0b',
+                  border: '3px solid #fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  zIndex: 9,
+                  pointerEvents: 'none',
+                  animation: 'pulse 1.5s infinite',
+                  opacity: 0.7
+                }}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: '-20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: '#f59e0b',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 5px',
+                  borderRadius: '3px',
+                  fontWeight: 'bold'
+                }}>
+                  {idx + 1}
+                </span>
+              </div>
+            );
+          })}
         </div>
         <div className="coordinate-hint" style={{ 
           marginTop: '12px', 
@@ -1092,20 +1171,37 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
           color: '#666',
           textAlign: 'center'
         }}>
-          🎯 Nhấp vào vị trí chính xác trên hình ảnh
-          {(q.correctCoordinates || []).length > 1 && (
-            <span style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-              (Có {q.correctCoordinates.length} vị trí đúng)
-            </span>
-          )}
+          🎯 Tìm tất cả các vị trí đúng trên hình ảnh
+          <div style={{ 
+            marginTop: '8px', 
+            fontSize: '13px', 
+            fontWeight: '600',
+            color: foundCoordinates.size === (q.correctCoordinates || []).length ? '#22c55e' : '#2563eb'
+          }}>
+            Đã tìm được: {foundCoordinates.size}/{(q.correctCoordinates || []).length} điểm
+          </div>
         </div>
       </div>
 
-      {clickPosition && (
+      {foundCoordinates.size > 0 && (
+        <div className="feedback" style={{
+          background: foundCoordinates.size === (q.correctCoordinates || []).length 
+            ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' 
+            : 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)',
+          color: foundCoordinates.size === (q.correctCoordinates || []).length ? '#155724' : '#0c5460',
+          padding: '12px',
+          borderRadius: '8px',
+          border: `2px solid ${foundCoordinates.size === (q.correctCoordinates || []).length ? '#c3e6cb' : '#bee5eb'}`
+        }}>
+          {foundCoordinates.size === (q.correctCoordinates || []).length 
+            ? `🎉 Hoàn thành! Bạn đã tìm đúng tất cả ${foundCoordinates.size} vị trí!`
+            : `✅ Tốt lắm! Tiếp tục tìm ${(q.correctCoordinates || []).length - foundCoordinates.size} điểm còn lại...`}
+        </div>
+      )}
+      
+      {lastClick && !lastClick.correct && (
         <div className="feedback">
-          {isCorrect 
-            ? `✅ Chính xác! Bạn đã tìm đúng vị trí${matchedCoordIndex !== null ? ` #${matchedCoordIndex + 1}` : ''}.`
-            : "❌ Sai vị trí. Hãy thử lại."}
+          ❌ Sai vị trí. Hãy thử lại! (Còn {(q.correctCoordinates || []).length - foundCoordinates.size} điểm)
         </div>
       )}
     </>
