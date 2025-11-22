@@ -36,6 +36,156 @@ export default function QuizPage() {
   const timerRef = useRef(null);
   const completedRef = useRef(false);
 
+  // Security: Prevent screenshot and copy
+  useEffect(() => {
+    // Disable right-click context menu
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // Disable keyboard shortcuts for screenshots and copy
+    const handleKeyDown = (e) => {
+      // Prevent PrintScreen
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+        alert('⚠️ Chụp màn hình bị vô hiệu hóa trong khi làm bài');
+        return false;
+      }
+      
+      // Prevent Ctrl/Cmd + P (Print)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        alert('⚠️ In trang bị vô hiệu hóa trong khi làm bài');
+        return false;
+      }
+      
+      // Prevent Ctrl/Cmd + S (Save)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent Ctrl/Cmd + C (Copy)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        alert('⚠️ Sao chép nội dung bị vô hiệu hóa trong khi làm bài');
+        return false;
+      }
+      
+      // Prevent Ctrl/Cmd + A (Select All)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent Ctrl/Cmd + U (View Source)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent F12 (DevTools)
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent Ctrl+Shift+I (DevTools)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Prevent Ctrl+Shift+C (Inspect Element)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Disable copy/cut/paste
+    const handleCopy = (e) => {
+      e.preventDefault();
+      alert('⚠️ Sao chép nội dung bị vô hiệu hóa trong khi làm bài');
+      return false;
+    };
+
+    const handleCut = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const handlePaste = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // Disable text selection via mouse
+    const handleSelectStart = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // Detect screenshot attempt (blur event - when switching apps)
+    const handleBlur = () => {
+      console.warn('⚠️ User switched away from quiz - possible screenshot attempt');
+    };
+
+    // Detect DevTools opening
+    const detectDevTools = () => {
+      const threshold = 160;
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      
+      if (widthThreshold || heightThreshold) {
+        console.warn('⚠️ DevTools detected');
+        // Optionally blur content or show warning
+        document.body.style.filter = 'blur(5px)';
+        setTimeout(() => {
+          document.body.style.filter = '';
+        }, 2000);
+      }
+    };
+
+    // Check DevTools periodically
+    const devToolsInterval = setInterval(detectDevTools, 1000);
+
+    // Add all event listeners
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCut);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('selectstart', handleSelectStart);
+    window.addEventListener('blur', handleBlur);
+
+    // Add CSS to prevent text selection
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.msUserSelect = 'none';
+    document.body.style.mozUserSelect = 'none';
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(devToolsInterval);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCut);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('selectstart', handleSelectStart);
+      window.removeEventListener('blur', handleBlur);
+      
+      // Restore normal behavior
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.msUserSelect = '';
+      document.body.style.mozUserSelect = '';
+      document.body.style.filter = '';
+    };
+  }, []);
+
   const markAnswered = (qid, info = {}) => {
     const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000); // tính thời gian bằng giây
     setAnswers((prev) => ({ 
@@ -407,7 +557,7 @@ export default function QuizPage() {
   };
 
   return (
-    <div className="quiz-layout">
+    <div className="quiz-layout" data-user={user?.username || 'Guest'}>
       {/* Sidebar điều hướng */}
       <aside className="quiz-nav">
         <div className="quiz-nav-title">Quá Trình</div>
@@ -520,6 +670,7 @@ function Question({ q, index, immediate, onAnswered }) {
       {q.type === "dragdrop" && <DragDropTargets q={q} onAnswered={onAnswered} />}
       {q.type === "image_single" && <SingleChoice q={q} immediate={immediate} onAnswered={onAnswered} />}
       {q.type === "image_grid" && <ImageGridChoice q={q} immediate={immediate} onAnswered={onAnswered} />}
+      {q.type === "coordinate" && <CoordinateQuestion q={q} immediate={immediate} onAnswered={onAnswered} />}
     </div>
   );
 }
@@ -817,6 +968,108 @@ function DragDropTargets({ q, onAnswered }) {
           Làm lại
         </button>
       </div>
+    </>
+  );
+}
+
+/* ========== Loại 6: Tìm tọa độ đúng trên hình ảnh ========== */
+function CoordinateQuestion({ q, immediate, onAnswered }) {
+  const [clickPosition, setClickPosition] = useState(null);
+  const [isCorrect, setIsCorrect] = useState(null);
+  const imageRef = useRef(null);
+
+  const calculateDistance = (x1, y1, x2, y2) => {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  };
+
+  const handleImageClick = (e) => {
+    if (!imageRef.current) return;
+    
+    const rect = imageRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100; // Convert to percentage
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    setClickPosition({ x, y });
+    
+    // Check if click is within radius of correct position
+    const distance = calculateDistance(x, y, q.correctCoordinate.x, q.correctCoordinate.y);
+    const radius = q.correctCoordinate.radius || 30;
+    const correct = distance <= (radius / rect.width) * 100; // Convert radius to percentage
+    
+    setIsCorrect(correct);
+    onAnswered?.({ correct, clickedPosition: { x, y } });
+  };
+
+  return (
+    <>
+      <div className="coordinate-container">
+        <div className="coordinate-image-wrapper" style={{ position: 'relative', cursor: 'crosshair' }}>
+          <img 
+            ref={imageRef}
+            src={q.image} 
+            alt="coordinate question" 
+            onClick={handleImageClick}
+            style={{ 
+              width: '100%', 
+              display: 'block',
+              userSelect: 'none'
+            }}
+          />
+          {clickPosition && (
+            <div 
+              className="coordinate-marker"
+              style={{
+                position: 'absolute',
+                left: `${clickPosition.x}%`,
+                top: `${clickPosition.y}%`,
+                transform: 'translate(-50%, -50%)',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor: isCorrect ? '#22c55e' : '#ef4444',
+                border: '3px solid white',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                zIndex: 10,
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+          {immediate && isCorrect === false && (
+            <div 
+              className="coordinate-correct-marker"
+              style={{
+                position: 'absolute',
+                left: `${q.correctCoordinate.x}%`,
+                top: `${q.correctCoordinate.y}%`,
+                transform: 'translate(-50%, -50%)',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                backgroundColor: '#22c55e',
+                border: '3px solid #fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                zIndex: 9,
+                pointerEvents: 'none',
+                animation: 'pulse 1.5s infinite'
+              }}
+            />
+          )}
+        </div>
+        <div className="coordinate-hint" style={{ 
+          marginTop: '12px', 
+          fontSize: '14px', 
+          color: '#666',
+          textAlign: 'center'
+        }}>
+          🎯 Nhấp vào vị trí chính xác trên hình ảnh
+        </div>
+      </div>
+
+      {clickPosition && (
+        <div className="feedback">
+          {isCorrect ? "✅ Chính xác! Bạn đã tìm đúng vị trí." : "❌ Sai vị trí. Hãy thử lại."}
+        </div>
+      )}
     </>
   );
 }

@@ -1,7 +1,164 @@
-import React, { useCallback, useEffect, useState, memo } from "react";
+import React, { useCallback, useEffect, useState, memo, useRef } from "react";
 import { API_URL } from '../../config/api';
 
 import "./admin.css";
+
+// Coordinate Editor Component
+const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLocalPreviews }) => {
+  const imageRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    try {
+      const res = await fetch(`${API_URL}/api/images/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData,
+      });
+      
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json?.message || "Upload failed");
+      }
+      
+      const json = await res.json();
+      updateQuestion(idx, { image: json.url });
+      setLocalPreviews(prev => ({ ...prev, [`coord-${idx}`]: json.url }));
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Không thể upload ảnh: " + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const handleImageClick = (e) => {
+    if (!imageRef.current) return;
+    
+    const rect = imageRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    updateQuestion(idx, {
+      correctCoordinate: {
+        x: Math.round(x * 100) / 100,
+        y: Math.round(y * 100) / 100,
+        radius: qObj.correctCoordinate?.radius || 30
+      }
+    });
+  };
+  
+  const handleRadiusChange = (newRadius) => {
+    updateQuestion(idx, {
+      correctCoordinate: {
+        ...qObj.correctCoordinate,
+        x: qObj.correctCoordinate?.x || 50,
+        y: qObj.correctCoordinate?.y || 50,
+        radius: newRadius
+      }
+    });
+  };
+  
+  const imageUrl = localPreviews[`coord-${idx}`] || qObj.image || "";
+  
+  return (
+    <div className="options-box coordinate-editor-box">
+      <div className="opts-title">Thiết lập câu hỏi tọa độ</div>
+      
+      <div className="coordinate-upload">
+        <label>Hình ảnh:</label>
+        <input
+          type="text"
+          value={qObj.image || ""}
+          placeholder="URL hình ảnh"
+          onChange={(e) => {
+            updateQuestion(idx, { image: e.target.value });
+            setLocalPreviews(prev => ({ ...prev, [`coord-${idx}`]: e.target.value }));
+          }}
+        />
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleImageUpload(e.target.files?.[0])}
+          disabled={uploading}
+        />
+        {uploading && <span>Đang upload...</span>}
+      </div>
+      
+      {imageUrl && (
+        <div className="coordinate-preview">
+          <p className="coordinate-instruction">
+            🎯 Nhấp vào vị trí chính xác trên hình để đặt tọa độ đúng
+          </p>
+          <div 
+            className="coordinate-image-container"
+            style={{
+              position: 'relative',
+              maxWidth: '600px',
+              cursor: 'crosshair',
+              border: '2px solid #e5e7eb',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}
+          >
+            <img
+              ref={imageRef}
+              src={imageUrl}
+              alt="coordinate setup"
+              onClick={handleImageClick}
+              style={{ width: '100%', display: 'block' }}
+            />
+            {qObj.correctCoordinate && (
+              <div
+                className="coordinate-marker-admin"
+                style={{
+                  position: 'absolute',
+                  left: `${qObj.correctCoordinate.x}%`,
+                  top: `${qObj.correctCoordinate.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#22c55e',
+                  border: '3px solid white',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  zIndex: 10,
+                  pointerEvents: 'none'
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+      
+      <div className="coordinate-settings">
+        <label>
+          Tọa độ đúng: {qObj.correctCoordinate 
+            ? `(${qObj.correctCoordinate.x.toFixed(1)}%, ${qObj.correctCoordinate.y.toFixed(1)}%)`
+            : "Chưa đặt"}
+        </label>
+        
+        <label>
+          Bán kính chấp nhận (px):
+          <input
+            type="number"
+            min="10"
+            max="100"
+            value={qObj.correctCoordinate?.radius || 30}
+            onChange={(e) => handleRadiusChange(Number(e.target.value))}
+            style={{ width: '100px', marginLeft: '8px' }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+});
 
 function makeEmptyQuestion(i = 1) {
   return {
@@ -85,6 +242,7 @@ const QuestionEditor = memo(({
           <option value="dragdrop">DragDrop</option>
           <option value="image_single">Image Single</option>
           <option value="image_grid">Image Grid (4 images)</option>
+          <option value="coordinate">Coordinate (Click on Image)</option>
         </select>
         <button className="btn btn-light" onClick={()=>removeQuestion(idx)}>Xóa câu</button>
       </div>
@@ -323,6 +481,16 @@ const QuestionEditor = memo(({
             </div>
           </div>
         </div>
+      )}
+
+      {qObj.type === "coordinate" && (
+        <CoordinateEditor 
+          qObj={qObj}
+          idx={idx}
+          updateQuestion={updateQuestion}
+          localPreviews={localPreviews}
+          setLocalPreviews={setLocalPreviews}
+        />
       )}
     </div>
   );

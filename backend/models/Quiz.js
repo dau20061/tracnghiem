@@ -68,6 +68,10 @@ QuestionSchema.path("type").validate(function () {
     if (!Array.isArray(this.targets) || !Array.isArray(this.bank)) return false;
     if (!this.correctMapping) return false;
   }
+  if (t === "coordinate") {
+    if (!this.image) return false;
+    if (!this.correctCoordinate || typeof this.correctCoordinate.x !== 'number' || typeof this.correctCoordinate.y !== 'number') return false;
+  }
   return true;
 }, "Invalid question payload for given type");
 

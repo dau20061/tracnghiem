@@ -40,3 +40,62 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Dark Mode Override - Force white background and black text */
+@media (prefers-color-scheme: dark) {
+  /* Root and body */
+  html, body, #root {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  /* All text elements */
+  h1, h2, h3, h4, h5, h6, p, span, div, a, label, li, td, th {
+    color: #000000 !important;
+  }
+  
+  /* Form elements */
+  input, textarea, select, option {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cccccc !important;
+  }
+  
+  /* Buttons - preserve button styles but ensure text is visible */
+  button {
+    color: inherit;
+  }
+  
+  button:not(.btn-primary):not([style*="background"]) {
+    background-color: #f0f0f0 !important;
+    color: #000000 !important;
+  }
+  
+  /* Cards and containers */
+  .card, .container, .wrapper {
+    background-color: #ffffff !important;
+  }
+  
+  /* Links */
+  a {
+    color: #0066cc !important;
+  }
+  
+  a:hover {
+    color: #0052a3 !important;
+  }
+  
+  /* Tables */
+  table {
+    background-color: #ffffff !important;
+  }
+  
+  tr, td, th {
+    background-color: transparent !important;
+  }
+  
+  /* Modals and overlays */
+  .modal, .overlay, .popup {
+    background-color: #ffffff !important;
+  }
+}
