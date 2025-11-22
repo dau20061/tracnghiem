@@ -20,6 +20,7 @@ const AdminUserQuizHistory = () => {
   const [activeTab, setActiveTab] = useState('original'); // 'original' | 'retries'
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
+  const [selectedRetries, setSelectedRetries] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [detailSuccess, setDetailSuccess] = useState('');
@@ -150,8 +151,10 @@ const AdminUserQuizHistory = () => {
     setDetailSuccess('');
     setEditingEnabled(false);
     setEditableAnswers([]);
+    setSelectedRetries([]);
 
     try {
+      // Lấy chi tiết bài làm
       const response = await fetch(`${API_URL}/api/quiz-results/admin/result/${resultId}`, {
         headers: {
           'Content-Type': 'application/json'
@@ -166,6 +169,23 @@ const AdminUserQuizHistory = () => {
       if (payload.result) {
         setSelectedResult(payload.result);
         setEditableAnswers(initializeEditableAnswers(payload.result.answers || []));
+
+        // Lấy retry history của bài này
+        try {
+          const retryResponse = await fetch(`${API_URL}/api/quiz-results/retry-history/${resultId}`, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            setSelectedRetries(retryData.retryHistory || []);
+          }
+        } catch (retryErr) {
+          console.error('Error loading retry history:', retryErr);
+          // Không throw error, chỉ log
+        }
       } else {
         throw new Error('Dữ liệu kết quả không hợp lệ');
       }
@@ -179,6 +199,7 @@ const AdminUserQuizHistory = () => {
   const closeDetailModal = () => {
     setDetailModalOpen(false);
     setSelectedResult(null);
+    setSelectedRetries([]);
     setEditableAnswers([]);
     setEditingEnabled(false);
     setDetailError('');
@@ -820,9 +841,44 @@ const AdminUserQuizHistory = () => {
         )
       )}
       {detailModalOpen && (
-        <div className="admin-modal" role="dialog" aria-modal="true">
-          <div className="admin-modal__content">
-            <button className="admin-modal__close" onClick={closeDetailModal} aria-label="Đóng">×</button>
+        <div className="admin-modal" role="dialog" aria-modal="true" onClick={closeDetailModal}>
+          <div className="admin-modal__content" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="admin-modal__close" 
+              onClick={closeDetailModal} 
+              aria-label="Đóng"
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: '2px solid #e5e7eb',
+                background: 'white',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6b7280',
+                fontWeight: 'bold',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#ef4444';
+                e.target.style.color = 'white';
+                e.target.style.borderColor = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'white';
+                e.target.style.color = '#6b7280';
+                e.target.style.borderColor = '#e5e7eb';
+              }}
+            >
+              ×
+            </button>
             {detailLoading ? (
               <div className="modal-loading">
                 <div className="spinner"></div>
@@ -879,6 +935,101 @@ const AdminUserQuizHistory = () => {
 
                 {detailSuccess && <div className="notice success modal-notice">{detailSuccess}</div>}
                 {detailError && <div className="notice error modal-notice">{detailError}</div>}
+
+                {/* Retry History Section */}
+                {selectedRetries.length > 0 && (
+                  <div style={{
+                    background: '#f0f9ff',
+                    border: '2px solid #06b6d4',
+                    borderRadius: '12px',
+                    padding: '15px',
+                    marginBottom: '20px'
+                  }}>
+                    <h3 style={{ 
+                      margin: '0 0 15px 0', 
+                      color: '#0e7490',
+                      fontSize: '16px',
+                      fontWeight: 'bold'
+                    }}>
+                      🔄 Lịch sử làm lại ({selectedRetries.length} lần)
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {selectedRetries.map((retry, index) => (
+                        <div 
+                          key={retry.id || index}
+                          style={{
+                            background: 'white',
+                            border: '1px solid #e0f2fe',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div>
+                            <span style={{
+                              background: '#06b6d4',
+                              color: 'white',
+                              padding: '3px 10px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              marginRight: '10px'
+                            }}>
+                              Lần {retry.retryNumber}
+                            </span>
+                            <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                              {formatDate(retry.completedAt)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                            <div>
+                              <span style={{ 
+                                fontSize: '18px', 
+                                fontWeight: 'bold',
+                                color: retry.percentage >= 80 ? '#10b981' : retry.percentage >= 60 ? '#f59e0b' : '#ef4444'
+                              }}>
+                                {retry.score}/{retry.totalQuestions}
+                              </span>
+                              <span style={{ 
+                                marginLeft: '8px',
+                                fontSize: '16px',
+                                color: '#6b7280'
+                              }}>
+                                ({retry.percentage}%)
+                              </span>
+                            </div>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              background: retry.percentage >= 90 ? '#10b981' : 
+                                         retry.percentage >= 80 ? '#3b82f6' : 
+                                         retry.percentage >= 70 ? '#f59e0b' : 
+                                         retry.percentage >= 60 ? '#ef4444' : '#6b7280',
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 'bold',
+                              fontSize: '16px'
+                            }}>
+                              {retry.grade}
+                            </div>
+                            <span style={{ 
+                              fontSize: '14px', 
+                              color: '#6b7280',
+                              minWidth: '60px'
+                            }}>
+                              ⏱️ {retry.formattedTime}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {editingEnabled && (
                   <p className="edit-hint">
