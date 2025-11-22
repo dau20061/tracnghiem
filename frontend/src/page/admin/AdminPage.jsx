@@ -56,24 +56,30 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     
+    const newCoord = {
+      x: Math.round(x * 100) / 100,
+      y: Math.round(y * 100) / 100,
+      radius: 30
+    };
+    
+    const existingCoords = qObj.correctCoordinates || [];
     updateQuestion(idx, {
-      correctCoordinate: {
-        x: Math.round(x * 100) / 100,
-        y: Math.round(y * 100) / 100,
-        radius: qObj.correctCoordinate?.radius || 30
-      }
+      correctCoordinates: [...existingCoords, newCoord]
     });
   };
   
-  const handleRadiusChange = (newRadius) => {
-    updateQuestion(idx, {
-      correctCoordinate: {
-        ...qObj.correctCoordinate,
-        x: qObj.correctCoordinate?.x || 50,
-        y: qObj.correctCoordinate?.y || 50,
-        radius: newRadius
-      }
-    });
+  const removeCoordinate = (coordIdx) => {
+    const coords = [...(qObj.correctCoordinates || [])];
+    coords.splice(coordIdx, 1);
+    updateQuestion(idx, { correctCoordinates: coords });
+  };
+  
+  const updateCoordinateRadius = (coordIdx, newRadius) => {
+    const coords = [...(qObj.correctCoordinates || [])];
+    if (coords[coordIdx]) {
+      coords[coordIdx] = { ...coords[coordIdx], radius: newRadius };
+      updateQuestion(idx, { correctCoordinates: coords });
+    }
   };
   
   const imageUrl = localPreviews[`coord-${idx}`] || qObj.image || "";
@@ -106,7 +112,7 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
       {imageUrl && (
         <div className="coordinate-preview">
           <p className="coordinate-instruction">
-            🎯 Nhấp vào vị trí chính xác trên hình để đặt tọa độ đúng
+            🎯 Nhấp vào vị trí trên hình để thêm tọa độ đúng (có thể thêm nhiều điểm)
           </p>
           <div 
             className="coordinate-image-container"
@@ -126,13 +132,14 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
               onClick={handleImageClick}
               style={{ width: '100%', display: 'block' }}
             />
-            {qObj.correctCoordinate && (
+            {(qObj.correctCoordinates || []).map((coord, coordIdx) => (
               <div
+                key={coordIdx}
                 className="coordinate-marker-admin"
                 style={{
                   position: 'absolute',
-                  left: `${qObj.correctCoordinate.x}%`,
-                  top: `${qObj.correctCoordinate.y}%`,
+                  left: `${coord.x}%`,
+                  top: `${coord.y}%`,
                   transform: 'translate(-50%, -50%)',
                   width: '24px',
                   height: '24px',
@@ -143,30 +150,80 @@ const CoordinateEditor = memo(({ qObj, idx, updateQuestion, localPreviews, setLo
                   zIndex: 10,
                   pointerEvents: 'none'
                 }}
-              />
-            )}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: '-22px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: '#22c55e',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {coordIdx + 1}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
       
       <div className="coordinate-settings">
-        <label>
-          Tọa độ đúng: {qObj.correctCoordinate 
-            ? `(${qObj.correctCoordinate.x.toFixed(1)}%, ${qObj.correctCoordinate.y.toFixed(1)}%)`
-            : "Chưa đặt"}
-        </label>
+        <div style={{ marginBottom: '12px' }}>
+          <strong>Danh sách tọa độ đúng:</strong> {(qObj.correctCoordinates || []).length} điểm
+        </div>
         
-        <label>
-          Bán kính chấp nhận (px):
-          <input
-            type="number"
-            min="10"
-            max="100"
-            value={qObj.correctCoordinate?.radius || 30}
-            onChange={(e) => handleRadiusChange(Number(e.target.value))}
-            style={{ width: '100px', marginLeft: '8px' }}
-          />
-        </label>
+        {(qObj.correctCoordinates || []).length === 0 ? (
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            Chưa có tọa độ nào. Nhấp vào hình để thêm.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {(qObj.correctCoordinates || []).map((coord, coordIdx) => (
+              <div 
+                key={coordIdx}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '40px 1fr auto auto',
+                  gap: '8px',
+                  alignItems: 'center',
+                  padding: '8px',
+                  background: '#f8fafc',
+                  borderRadius: '6px',
+                  border: '1px solid #e6eef6'
+                }}
+              >
+                <span style={{ fontWeight: 'bold', color: '#22c55e' }}>#{coordIdx + 1}</span>
+                <span style={{ fontSize: '13px', color: '#475569' }}>
+                  ({coord.x.toFixed(1)}%, {coord.y.toFixed(1)}%)
+                </span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                  R:
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={coord.radius || 30}
+                    onChange={(e) => updateCoordinateRadius(coordIdx, Number(e.target.value))}
+                    style={{ width: '60px', padding: '4px', fontSize: '12px' }}
+                  />
+                  px
+                </label>
+                <button
+                  className="btn btn-light"
+                  onClick={() => removeCoordinate(coordIdx)}
+                  style={{ padding: '4px 8px', fontSize: '12px' }}
+                >
+                  Xóa
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

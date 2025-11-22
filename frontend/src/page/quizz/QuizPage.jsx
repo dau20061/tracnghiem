@@ -976,6 +976,7 @@ function DragDropTargets({ q, onAnswered }) {
 function CoordinateQuestion({ q, immediate, onAnswered }) {
   const [clickPosition, setClickPosition] = useState(null);
   const [isCorrect, setIsCorrect] = useState(null);
+  const [matchedCoordIndex, setMatchedCoordIndex] = useState(null);
   const imageRef = useRef(null);
 
   const calculateDistance = (x1, y1, x2, y2) => {
@@ -991,13 +992,27 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
     
     setClickPosition({ x, y });
     
-    // Check if click is within radius of correct position
-    const distance = calculateDistance(x, y, q.correctCoordinate.x, q.correctCoordinate.y);
-    const radius = q.correctCoordinate.radius || 30;
-    const correct = distance <= (radius / rect.width) * 100; // Convert radius to percentage
+    // Check if click is within radius of any correct position
+    const correctCoords = q.correctCoordinates || [];
+    let matched = false;
+    let matchedIndex = null;
     
-    setIsCorrect(correct);
-    onAnswered?.({ correct, clickedPosition: { x, y } });
+    for (let i = 0; i < correctCoords.length; i++) {
+      const coord = correctCoords[i];
+      const distance = calculateDistance(x, y, coord.x, coord.y);
+      const radius = coord.radius || 30;
+      const radiusPercent = (radius / rect.width) * 100;
+      
+      if (distance <= radiusPercent) {
+        matched = true;
+        matchedIndex = i;
+        break;
+      }
+    }
+    
+    setIsCorrect(matched);
+    setMatchedCoordIndex(matchedIndex);
+    onAnswered?.({ correct: matched, clickedPosition: { x, y }, matchedIndex });
   };
 
   return (
@@ -1034,13 +1049,14 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
               }}
             />
           )}
-          {immediate && isCorrect === false && (
+          {immediate && isCorrect === false && (q.correctCoordinates || []).map((coord, idx) => (
             <div 
+              key={idx}
               className="coordinate-correct-marker"
               style={{
                 position: 'absolute',
-                left: `${q.correctCoordinate.x}%`,
-                top: `${q.correctCoordinate.y}%`,
+                left: `${coord.x}%`,
+                top: `${coord.y}%`,
                 transform: 'translate(-50%, -50%)',
                 width: '24px',
                 height: '24px',
@@ -1052,8 +1068,23 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
                 pointerEvents: 'none',
                 animation: 'pulse 1.5s infinite'
               }}
-            />
-          )}
+            >
+              <span style={{
+                position: 'absolute',
+                top: '-20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#22c55e',
+                color: 'white',
+                fontSize: '10px',
+                padding: '2px 5px',
+                borderRadius: '3px',
+                fontWeight: 'bold'
+              }}>
+                {idx + 1}
+              </span>
+            </div>
+          ))}
         </div>
         <div className="coordinate-hint" style={{ 
           marginTop: '12px', 
@@ -1062,12 +1093,19 @@ function CoordinateQuestion({ q, immediate, onAnswered }) {
           textAlign: 'center'
         }}>
           🎯 Nhấp vào vị trí chính xác trên hình ảnh
+          {(q.correctCoordinates || []).length > 1 && (
+            <span style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+              (Có {q.correctCoordinates.length} vị trí đúng)
+            </span>
+          )}
         </div>
       </div>
 
       {clickPosition && (
         <div className="feedback">
-          {isCorrect ? "✅ Chính xác! Bạn đã tìm đúng vị trí." : "❌ Sai vị trí. Hãy thử lại."}
+          {isCorrect 
+            ? `✅ Chính xác! Bạn đã tìm đúng vị trí${matchedCoordIndex !== null ? ` #${matchedCoordIndex + 1}` : ''}.`
+            : "❌ Sai vị trí. Hãy thử lại."}
         </div>
       )}
     </>

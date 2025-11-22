@@ -24,7 +24,7 @@ const DragTargetSchema = new mongoose.Schema({
 // Câu hỏi tổng quát — các field “union” tùy theo type
 const QuestionSchema = new mongoose.Schema({
   id:      { type: String, required: true },
-  type:    { type: String, enum: ["single", "multi", "binary", "dragdrop", "image_single", "image_grid"], required: true },
+  type:    { type: String, enum: ["single", "multi", "binary", "dragdrop", "image_single", "image_grid", "coordinate"], required: true },
   prompt:  { type: String, required: true },
   image:   { type: String }, // dùng cho image_single
 
@@ -44,6 +44,13 @@ const QuestionSchema = new mongoose.Schema({
   targets:        { type: [DragTargetSchema], default: void 0 },
   bank:           { type: [DragBankSchema],   default: void 0 },
   correctMapping: { type: Map, of: String,    default: void 0 }, // { t1: "o1", t2: "o2" }
+
+  // coordinate - multiple correct positions
+  correctCoordinates: [{
+    x: { type: Number, required: true },
+    y: { type: Number, required: true },
+    radius: { type: Number, default: 30 }
+  }],
 }, { _id: false });
 
 // Validator tùy theo type (báo lỗi sớm nếu payload sai)
@@ -70,7 +77,10 @@ QuestionSchema.path("type").validate(function () {
   }
   if (t === "coordinate") {
     if (!this.image) return false;
-    if (!this.correctCoordinate || typeof this.correctCoordinate.x !== 'number' || typeof this.correctCoordinate.y !== 'number') return false;
+    if (!Array.isArray(this.correctCoordinates) || this.correctCoordinates.length === 0) return false;
+    for (const coord of this.correctCoordinates) {
+      if (typeof coord.x !== 'number' || typeof coord.y !== 'number') return false;
+    }
   }
   return true;
 }, "Invalid question payload for given type");
