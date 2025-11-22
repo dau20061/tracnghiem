@@ -590,6 +590,31 @@ router.post("/admin", requireAdminKey, async (req, res) => {
   }
 });
 
+// Admin cộng lượt làm bài cho user
+router.patch("/admin/:id/attempts", requireAdminKey, async (req, res) => {
+  try {
+    const { attempts } = req.body || {};
+    if (!attempts || typeof attempts !== 'number' || attempts <= 0) {
+      return res.status(400).json({ message: "Số lượt không hợp lệ" });
+    }
+    
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
+
+    user.remainingAttempts = (user.remainingAttempts || 0) + attempts;
+    user.totalPurchasedAttempts = (user.totalPurchasedAttempts || 0) + attempts;
+    
+    await user.save();
+    res.json({ 
+      message: `Đã cộng ${attempts} lượt làm bài`,
+      user: sanitizeUser(user) 
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Không thể cộng lượt" });
+  }
+});
+
 router.patch("/admin/:id/membership", requireAdminKey, async (req, res) => {
   try {
     const { plan, expiresAt, extendDays } = req.body || {};
@@ -604,10 +629,13 @@ router.patch("/admin/:id/membership", requireAdminKey, async (req, res) => {
         user.membershipLevel = "free";
         user.membershipExpiresAt = null;
       } else if (["day", "month", "year"].includes(plan)) {
-        const { expiresAt, addedMs } = addDuration(plan, user.membershipExpiresAt);
+        // Cộng lượt thay vì thêm ngày
+        const attemptsMap = { day: 3, month: 20, year: 200 };
+        const attempts = attemptsMap[plan];
+        
+        user.remainingAttempts = (user.remainingAttempts || 0) + attempts;
+        user.totalPurchasedAttempts = (user.totalPurchasedAttempts || 0) + attempts;
         user.membershipLevel = plan;
-        user.membershipExpiresAt = expiresAt;
-        user.totalPurchasedMs = (user.totalPurchasedMs || 0) + addedMs;
       } else {
         return res.status(400).json({ message: "Plan không hợp lệ" });
       }

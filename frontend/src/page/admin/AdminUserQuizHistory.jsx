@@ -10,12 +10,14 @@ const AdminUserQuizHistory = () => {
   
   const [user, setUser] = useState(null);
   const [history, setHistory] = useState([]);
+  const [retryHistory, setRetryHistory] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+  const [activeTab, setActiveTab] = useState('original'); // 'original' | 'retries'
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -52,6 +54,34 @@ const AdminUserQuizHistory = () => {
     } catch (err) {
       setError(err.message);
       setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch lịch sử làm lại của user (tất cả retry history)
+  const fetchRetryHistory = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Gọi API để lấy tất cả retry history của user này
+      const response = await fetch(`${API_URL}/api/quiz-results/admin/${userId}/retries`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể tải lịch sử làm lại');
+      }
+
+      const data = await response.json();
+      setRetryHistory(data.retries || []);
+    } catch (err) {
+      setError(err.message);
+      setRetryHistory([]);
     } finally {
       setLoading(false);
     }
@@ -473,8 +503,12 @@ const AdminUserQuizHistory = () => {
   );
 
   useEffect(() => {
-    fetchUserHistory(1);
-  }, [userId]);
+    if (activeTab === 'original') {
+      fetchUserHistory(1);
+    } else {
+      fetchRetryHistory();
+    }
+  }, [userId, activeTab]);
 
   if (loading && !history.length) {
     return (
@@ -550,8 +584,46 @@ const AdminUserQuizHistory = () => {
         </div>
       )}
 
-      {/* Danh sách lịch sử */}
-      {history.length === 0 ? (
+      {/* Tab Navigation */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '10px', 
+        marginBottom: '20px',
+        borderBottom: '2px solid #e5e7eb',
+        padding: '0 0 10px 0'
+      }}>
+        <button
+          onClick={() => setActiveTab('original')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderBottom: activeTab === 'original' ? '3px solid #667eea' : '3px solid transparent',
+            background: 'transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'original' ? 'bold' : 'normal',
+            color: activeTab === 'original' ? '#667eea' : '#6b7280'
+          }}
+        >
+          🆕 Bài làm mới ({history.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('retries')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderBottom: activeTab === 'retries' ? '3px solid #667eea' : '3px solid transparent',
+            background: 'transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'retries' ? 'bold' : 'normal',
+            color: activeTab === 'retries' ? '#667eea' : '#6b7280'
+          }}
+        >
+          🔄 Lịch sử làm lại ({retryHistory.length})
+        </button>
+      </div>
+
+      {/* Danh sách lịch sử - Original */}
+      {activeTab === 'original' && history.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📝</div>
           <h3>Chưa có lịch sử làm bài</h3>
@@ -560,7 +632,7 @@ const AdminUserQuizHistory = () => {
       ) : (
         <>
           <div className="history-list">
-            <h2>📋 Lịch sử chi tiết ({pagination?.totalResults || 0} bài)</h2>
+            <h2>📋 Lịch sử bài làm mới ({pagination?.totalResults || 0} bài)</h2>
             <div className="history-table">
               <div className="table-header">
                 <div className="col col-quiz">Bài quiz</div>
@@ -649,6 +721,103 @@ const AdminUserQuizHistory = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Danh sách lịch sử làm lại */}
+      {activeTab === 'retries' && (
+        retryHistory.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🔄</div>
+            <h3>Chưa có lịch sử làm lại</h3>
+            <p>User này chưa làm lại bài nào.</p>
+          </div>
+        ) : (
+          <div className="history-list">
+            <h2>🔄 Lịch sử làm lại ({retryHistory.length} lần)</h2>
+            <div className="history-table">
+              <div className="table-header">
+                <div className="col col-quiz">Bài quiz</div>
+                <div className="col col-score">Điểm số</div>
+                <div className="col col-time">Thời gian</div>
+                <div className="col col-date">Ngày làm</div>
+                <div className="col col-actions">Lần retry</div>
+              </div>
+              
+              {retryHistory.map((retry) => (
+                <div key={retry.id} className="table-row" style={{ borderLeft: '4px solid #06b6d4' }}>
+                  <div className="col col-quiz">
+                    <div className="quiz-info">
+                      <div className="quiz-title">
+                        {retry.quizTitle}
+                        <span style={{ 
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          background: '#06b6d4',
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          Lần {retry.retryNumber}
+                        </span>
+                      </div>
+                      <div className="quiz-id">
+                        ID: {retry.quizId} | Bài gốc: {retry.originalResultId?.toString().slice(-6)}
+                      </div>
+                      {retry.originalPercentage !== undefined && (
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                          So với bài gốc: 
+                          <span style={{ 
+                            marginLeft: '5px',
+                            color: retry.percentage >= retry.originalPercentage ? '#059669' : '#dc2626',
+                            fontWeight: 'bold'
+                          }}>
+                            {retry.percentage >= retry.originalPercentage ? '📈' : '📉'}
+                            {' '}{retry.percentage >= retry.originalPercentage ? '+' : ''}{retry.percentage - retry.originalPercentage}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="col col-score">
+                    <div className="score-info">
+                      <div className="score-main">
+                        {retry.score}/{retry.totalQuestions}
+                        <span className="percentage">{retry.percentage}%</span>
+                      </div>
+                      <div className={`grade ${getGradeClass(retry.grade)}`}>
+                        {retry.grade}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="col col-time">
+                    <div className="time-info">
+                      {formatTime(retry.totalTimeSpent)}
+                    </div>
+                  </div>
+                  
+                  <div className="col col-date">
+                    <div className="date-info">
+                      {formatDate(retry.completedAt)}
+                    </div>
+                  </div>
+                  
+                  <div className="col col-actions">
+                    <button
+                      onClick={() => openResultDetail(retry.originalResultId || retry.quizResultId)}
+                      className="btn btn-view"
+                      title="Xem bài gốc"
+                    >
+                      👁️ Bài gốc
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
       )}
       {detailModalOpen && (
         <div className="admin-modal" role="dialog" aria-modal="true">

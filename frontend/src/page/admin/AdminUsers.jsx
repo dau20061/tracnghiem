@@ -108,21 +108,21 @@ export default function AdminUsers() {
     plan === "free" ? "Đã chuyển về gói miễn phí" : "Đã gia hạn gói"
   );
 
-  const extendCustomDays = (id) => {
-    const days = window.prompt("Tăng thêm bao nhiêu ngày?", "7");
-    if (!days) return;
-    const num = Number(days);
+  const addAttempts = (id) => {
+    const attempts = window.prompt("Cộng thêm bao nhiêu lượt làm bài?", "10");
+    if (!attempts) return;
+    const num = Number(attempts);
     if (Number.isNaN(num) || num <= 0) {
-      setErr("Số ngày không hợp lệ");
+      setErr("Số lượt không hợp lệ");
       return;
     }
     adminRequest(
-      `${API_URL}/api/users/admin/${id}/membership`,
+      `${API_URL}/api/users/admin/${id}/attempts`,
       {
         method: "PATCH",
-        body: JSON.stringify({ extendDays: num }),
+        body: JSON.stringify({ attempts: num }),
       },
-      `Đã cộng thêm ${num} ngày`
+      `Đã cộng thêm ${num} lượt làm bài`
     );
   };
 
@@ -257,7 +257,8 @@ export default function AdminUsers() {
           <thead>
             <tr>
               <th>Tài khoản</th>
-              <th>Hết hạn</th>
+              <th>Lượt còn lại</th>
+              <th>Tổng đã mua</th>
               <th>Tạo lúc</th>
               <th>Xác thực</th>
               <th>Trạng thái hoạt động</th>
@@ -288,7 +289,14 @@ export default function AdminUsers() {
                     </div>
                   </div>
                 </td>
-                <td>{formatDate(user.membershipExpiresAt)}</td>
+                <td>
+                  <strong style={{ color: user.remainingAttempts > 0 ? '#10b981' : '#ef4444', fontSize: '16px' }}>
+                    {user.remainingAttempts || 0}
+                  </strong>
+                </td>
+                <td>
+                  <span style={{ color: '#6b7280' }}>{user.totalPurchasedAttempts || 0}</span>
+                </td>
                 <td>{formatDate(user.createdAt)}</td>
                 <td>
                   {user.isVerified ? (
@@ -311,11 +319,10 @@ export default function AdminUsers() {
                 <td>
                   <div className="actions">
                     <button type="button" onClick={() => navigate(`/admin/users/${user.id}/quiz-history`)}>📊 Lịch sử bài làm</button>
-                    <button type="button" onClick={() => extendPlan(user.id, "day")}>+1 ngày</button>
-                    <button type="button" onClick={() => extendPlan(user.id, "month")}>+1 tháng</button>
-                    <button type="button" onClick={() => extendPlan(user.id, "year")}>+1 năm</button>
-                    <button type="button" onClick={() => extendPlan(user.id, "free")}>Free</button>
-                    <button type="button" onClick={() => extendCustomDays(user.id)}>+N ngày</button>
+                    <button type="button" onClick={() => extendPlan(user.id, "day")}>+3 lượt</button>
+                    <button type="button" onClick={() => extendPlan(user.id, "month")}>+20 lượt</button>
+                    <button type="button" onClick={() => extendPlan(user.id, "year")}>+200 lượt</button>
+                    <button type="button" onClick={() => addAttempts(user.id)}>+N lượt</button>
                     <button type="button" onClick={() => changePassword(user.id, user.username)}>Đổi mật khẩu</button>
                     <button type="button" onClick={() => toggleDisabled(user)}>{user.isDisabled ? "Mở khóa" : "Vô hiệu"}</button>
                     <button type="button" className="danger" onClick={() => removeUser(user.id, user.username)}>Xóa</button>

@@ -826,6 +826,62 @@ router.get("/admin/:userId", requireAdminKey, async (req, res) => {
   }
 });
 
+// Lấy tất cả retry history của một user (admin)
+router.get("/admin/:userId/retries", requireAdminKey, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Kiểm tra user tồn tại
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+
+    // Lấy tất cả retry history của user này
+    const retries = await RetryHistory
+      .find({ userId: userId })
+      .sort({ completedAt: -1 })
+      .lean();
+
+    // Format dữ liệu và lấy thông tin bài gốc
+    const formattedRetries = await Promise.all(
+      retries.map(async (retry) => {
+        const originalResult = await QuizResult.findById(retry.quizResultId).lean();
+        
+        return {
+          id: retry._id,
+          quizId: retry.quizId,
+          quizTitle: retry.quizTitle,
+          score: retry.score,
+          totalQuestions: retry.totalQuestions,
+          percentage: retry.percentage,
+          grade: gradeFromPercentage(retry.percentage),
+          totalTimeSpent: retry.totalTimeSpent,
+          completedAt: retry.completedAt,
+          retryNumber: retry.retryNumber,
+          quizResultId: retry.quizResultId,
+          originalResultId: retry.quizResultId,
+          originalScore: originalResult?.score || 0,
+          originalPercentage: originalResult?.percentage || 0
+        };
+      })
+    );
+
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      },
+      retries: formattedRetries,
+      totalRetries: formattedRetries.length
+    });
+  } catch (error) {
+    console.error("Get admin retry history error:", error);
+    res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+});
+
 // Xóa một kết quả làm bài cụ thể (dành cho admin)
 router.delete("/admin/:resultId", requireAdminKey, async (req, res) => {
   try {
