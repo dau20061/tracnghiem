@@ -34,10 +34,11 @@ const AdminUserQuizHistory = () => {
       setLoading(true);
       setError('');
       
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/${userId}?page=${page}&limit=10`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-          // Có thể cần thêm x-admin-key nếu cần
         }
       });
 
@@ -67,8 +68,10 @@ const AdminUserQuizHistory = () => {
       setError('');
       
       // Gọi API để lấy tất cả retry history của user này
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/${userId}/retries`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -93,9 +96,11 @@ const AdminUserQuizHistory = () => {
     if (!window.confirm(`Xóa kết quả bài "${quizTitle}"?`)) return;
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/${resultId}`, {
         method: 'DELETE',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -117,9 +122,11 @@ const AdminUserQuizHistory = () => {
     if (!window.confirm(`Xóa toàn bộ lịch sử làm bài của ${user?.username}? Hành động này không thể hoàn tác!`)) return;
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/user/${userId}`, {
         method: 'DELETE',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -155,8 +162,10 @@ const AdminUserQuizHistory = () => {
 
     try {
       // Lấy chi tiết bài làm
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/result/${resultId}`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -172,8 +181,10 @@ const AdminUserQuizHistory = () => {
 
         // Lấy retry history của bài này
         try {
+          const token = localStorage.getItem("token");
           const retryResponse = await fetch(`${API_URL}/api/quiz-results/retry-history/${resultId}`, {
             headers: {
+              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });
@@ -253,9 +264,11 @@ const AdminUserQuizHistory = () => {
       });
 
       const resultId = selectedResult.id || selectedResult._id;
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/quiz-results/admin/result/${resultId}`, {
         method: 'PATCH',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ answers: payloadAnswers })

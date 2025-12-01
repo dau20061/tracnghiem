@@ -38,10 +38,11 @@ const AdminRevenueStats = () => {
       setLoading(true);
       setError('');
       
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/revenue-stats/overview`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-          // Add admin key if needed
         }
       });
 
@@ -63,8 +64,10 @@ const AdminRevenueStats = () => {
   // Fetch timeline data
   const fetchTimeline = useCallback(async (period) => {
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/revenue-stats/timeline?period=${period}`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -85,9 +88,10 @@ const AdminRevenueStats = () => {
   const fetchPackageUsers = useCallback(async (packageType, page = 1) => {
     try {
       setLoading(true);
-      
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/revenue-stats/users/${packageType}?page=${page}&limit=10`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

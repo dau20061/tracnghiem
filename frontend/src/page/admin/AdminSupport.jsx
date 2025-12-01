@@ -43,7 +43,13 @@ export default function AdminSupport() {
   const loadThreads = useCallback(async () => {
     setLoadingThreads(true);
     try {
-      const res = await fetch(`${API_URL}/api/chat/admin/threads`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/chat/admin/threads`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || "Không tải được danh sách hội thoại");
       setThreads(Array.isArray(json.threads) ? json.threads : []);
@@ -59,7 +65,13 @@ export default function AdminSupport() {
     if (!userId) return;
     setLoadingMessages(true);
     try {
-      const res = await fetch(`${API_URL}/api/chat/admin/${userId}`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/chat/admin/${userId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được hội thoại");
       setSelected(data.user);
@@ -107,9 +119,13 @@ export default function AdminSupport() {
     setSending(true);
     setError("");
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/api/chat/admin/${selectedId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();

@@ -28,7 +28,13 @@ export default function AdminUsers() {
     setLoading(true);
     setErr("");
     try {
-      const res = await fetch(`${API_URL}/api/users/admin`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/users/admin`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Không tải được danh sách user");
       setUsers(Array.isArray(data.users) ? data.users : []);
@@ -51,9 +57,11 @@ export default function AdminUsers() {
     setErr("");
     setNotice("");
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(url, {
         ...options,
         headers: {
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
           ...(options.headers || {}),
         },
