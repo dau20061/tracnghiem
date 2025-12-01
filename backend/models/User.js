@@ -40,6 +40,10 @@ const UserSchema = new mongoose.Schema(
     },
     passwordResetOTP: { type: String, default: null },
     passwordResetExpiresAt: { type: Date, default: null },
+    
+    // Email verification token (for admin-created accounts)
+    verificationToken: { type: String, default: null },
+    verificationTokenExpiry: { type: Date, default: null },
   },
   { timestamps: true }
 );
