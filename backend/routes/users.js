@@ -794,7 +794,7 @@ router.post("/admin", requireAdmin, async (req, res) => {
     
     // Send verification email
     try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://tracnghiem-tawny.vercel.app';
       console.log('📧 Sending verification email...');
       console.log('   FRONTEND_URL env:', process.env.FRONTEND_URL);
       console.log('   Using URL:', frontendUrl);
