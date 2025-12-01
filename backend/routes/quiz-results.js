@@ -26,18 +26,32 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-// Middleware admin (đơn giản hóa - kiểm tra admin key)
-const requireAdminKey = (req, res, next) => {
-  const adminKey = process.env.ADMIN_API_KEY;
-  if (!adminKey) {
-    return next();
+// Middleware admin (JWT-based)
+const requireAdmin = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization || "";
+    if (!header.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Thiếu token" });
+    }
+    const token = header.split(" ")[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Chỉ admin mới có quyền truy cập" });
+    }
+    
+    req.userId = user._id;
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error("Admin auth error", e.message);
+    res.status(401).json({ message: "Token không hợp lệ" });
   }
-  
-  const headerKey = req.headers["x-admin-key"];
-  if (headerKey !== adminKey) {
-    return res.status(401).json({ message: "Không có quyền admin" });
-  }
-  return next();
 };
 
 // ==== Helpers ====
@@ -662,7 +676,7 @@ router.get("/stats/period", requireAuth, async (req, res) => {
 // ==== ADMIN APIs ====
 
 // Lấy chi tiết một kết quả bất kỳ (admin)
-router.get("/admin/result/:resultId", requireAdminKey, async (req, res) => {
+router.get("/admin/result/:resultId", requireAdmin, async (req, res) => {
   try {
     const result = await QuizResult.findById(req.params.resultId).lean();
     if (!result) {
@@ -689,7 +703,7 @@ router.get("/admin/result/:resultId", requireAdminKey, async (req, res) => {
 });
 
 // Cập nhật câu trả lời của một kết quả (admin)
-router.patch("/admin/result/:resultId", requireAdminKey, async (req, res) => {
+router.patch("/admin/result/:resultId", requireAdmin, async (req, res) => {
   try {
     const { answers, totalTimeSpent, status } = req.body;
 
@@ -755,7 +769,7 @@ router.patch("/admin/result/:resultId", requireAdminKey, async (req, res) => {
 });
 
 // Lấy lịch sử làm bài của một user cụ thể (dành cho admin)
-router.get("/admin/:userId", requireAdminKey, async (req, res) => {
+router.get("/admin/:userId", requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -838,7 +852,7 @@ router.get("/admin/:userId", requireAdminKey, async (req, res) => {
 });
 
 // Lấy tất cả retry history của một user (admin)
-router.get("/admin/:userId/retries", requireAdminKey, async (req, res) => {
+router.get("/admin/:userId/retries", requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -894,7 +908,7 @@ router.get("/admin/:userId/retries", requireAdminKey, async (req, res) => {
 });
 
 // Xóa một kết quả làm bài cụ thể (dành cho admin)
-router.delete("/admin/:resultId", requireAdminKey, async (req, res) => {
+router.delete("/admin/:resultId", requireAdmin, async (req, res) => {
   try {
     const { resultId } = req.params;
     
@@ -918,7 +932,7 @@ router.delete("/admin/:resultId", requireAdminKey, async (req, res) => {
 });
 
 // Xóa tất cả lịch sử làm bài của một user (dành cho admin)
-router.delete("/admin/user/:userId", requireAdminKey, async (req, res) => {
+router.delete("/admin/user/:userId", requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     

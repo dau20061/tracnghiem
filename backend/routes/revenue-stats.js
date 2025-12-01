@@ -1,21 +1,36 @@
 import { Router } from "express";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import PaymentTransaction from "../models/PaymentTransaction.js";
 
 const router = Router();
 
-// Middleware admin key
-const requireAdminKey = (req, res, next) => {
-  const adminKey = process.env.ADMIN_API_KEY;
-  if (!adminKey) {
-    return next();
+// Middleware admin (JWT-based)
+const requireAdmin = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization || "";
+    if (!header.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Thiếu token" });
+    }
+    const token = header.split(" ")[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Chỉ admin mới có quyền truy cập" });
+    }
+    
+    req.userId = user._id;
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error("Admin auth error", e.message);
+    res.status(401).json({ message: "Token không hợp lệ" });
   }
-  
-  const headerKey = req.headers["x-admin-key"];
-  if (headerKey !== adminKey) {
-    return res.status(401).json({ message: "Không có quyền admin" });
-  }
-  return next();
 };
 
 // Giá gói (VND) - theo định nghĩa từ payment system
@@ -26,7 +41,7 @@ const PACKAGE_PRICES = {
 };
 
 // Lấy thống kê doanh thu tổng quan
-router.get("/overview", requireAdminKey, async (req, res) => {
+router.get("/overview", requireAdmin, async (req, res) => {
   try {
     // Thống kê từ PaymentTransaction với status 'paid' (thành công)
     const paymentStats = await PaymentTransaction.aggregate([
@@ -122,7 +137,7 @@ router.get("/overview", requireAdminKey, async (req, res) => {
 });
 
 // Lấy danh sách user theo gói cụ thể
-router.get("/users/:packageType", requireAdminKey, async (req, res) => {
+router.get("/users/:packageType", requireAdmin, async (req, res) => {
   try {
     const { packageType } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -200,7 +215,7 @@ router.get("/users/:packageType", requireAdminKey, async (req, res) => {
 });
 
 // Thống kê doanh thu theo thời gian
-router.get("/timeline", requireAdminKey, async (req, res) => {
+router.get("/timeline", requireAdmin, async (req, res) => {
   try {
     const { period = 'month' } = req.query; // day, week, month, year
     

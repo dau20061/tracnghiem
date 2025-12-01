@@ -40,15 +40,31 @@ const requireUser = (req, res, next) => {
   }
 };
 
-const requireAdminKey = (req, res, next) => {
-  if (!ADMIN_API_KEY) {
-    return next();
+const requireAdmin = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization || "";
+    if (!header.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Thiếu token" });
+    }
+    const token = header.split(" ")[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Chỉ admin mới có quyền truy cập" });
+    }
+    
+    req.userId = user._id;
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error("Admin auth error", e.message);
+    res.status(401).json({ message: "Token không hợp lệ" });
   }
-  const headerKey = req.headers["x-admin-key"];
-  if (headerKey !== ADMIN_API_KEY) {
-    return res.status(401).json({ message: "Không có quyền truy cập quản trị" });
-  }
-  return next();
 };
 
 const sanitizeMessage = (doc) => ({
@@ -96,7 +112,7 @@ router.post("/user", requireUser, async (req, res) => {
   }
 });
 
-router.get("/admin/threads", requireAdminKey, async (_req, res) => {
+router.get("/admin/threads", requireAdmin, async (_req, res) => {
   try {
     const threads = await ChatMessage.aggregate([
       { $sort: { createdAt: -1 } },
@@ -167,7 +183,7 @@ router.get("/admin/threads", requireAdminKey, async (_req, res) => {
   }
 });
 
-router.get("/admin/:userId", requireAdminKey, async (req, res) => {
+router.get("/admin/:userId", requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId).lean();
@@ -195,7 +211,7 @@ router.get("/admin/:userId", requireAdminKey, async (req, res) => {
   }
 });
 
-router.post("/admin/:userId", requireAdminKey, async (req, res) => {
+router.post("/admin/:userId", requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const { message } = req.body || {};
