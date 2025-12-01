@@ -738,7 +738,7 @@ router.get("/admin", requireAdmin, async (_req, res) => {
 
 router.post("/admin", requireAdmin, async (req, res) => {
   try {
-    const { username, password, email, plan = "free", expiresAt, isDisabled = false } = req.body || {};
+    const { username, password, email, plan = "free", expiresAt, isDisabled = false, attempts = 0 } = req.body || {};
     if (!username || !password || !email) {
       return res.status(400).json({ message: "Thiếu username/password/email" });
     }
@@ -764,6 +764,8 @@ router.post("/admin", requireAdmin, async (req, res) => {
       { expiresIn: '24h' }
     );
     
+    const attemptsNum = Number(attempts) || 0;
+    
     const doc = new User({ 
       username, 
       passwordHash, 
@@ -772,7 +774,9 @@ router.post("/admin", requireAdmin, async (req, res) => {
       isVerified: false,
       accountStatus: 'pending',
       verificationToken,
-      verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      remainingAttempts: attemptsNum,
+      totalPurchasedAttempts: attemptsNum
     });
 
     if (["day", "month", "year"].includes(plan)) {

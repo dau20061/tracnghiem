@@ -20,7 +20,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
-  const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", plan: "free" });
+  const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", plan: "free", attempts: 0 });
   const [filterStatus, setFilterStatus] = useState("all"); // all, verified, pending
   const navigate = useNavigate();
 
@@ -100,11 +100,12 @@ export default function AdminUsers() {
           email: createForm.email.trim(),
           password: createForm.password,
           plan: createForm.plan,
+          attempts: Number(createForm.attempts) || 0,
         }),
       },
       "Đã tạo tài khoản"
     );
-    setCreateForm({ username: "", email: "", password: "", plan: "free" });
+    setCreateForm({ username: "", email: "", password: "", plan: "free", attempts: 0 });
   };
 
   const extendPlan = (id, plan) => adminRequest(
@@ -233,6 +234,13 @@ export default function AdminUsers() {
             <option value="month">Gói 20 lượt</option>
             <option value="year">Gói 200 lượt</option>
           </select>
+          <input
+            placeholder="Số lượt làm bài (mặc định: 0)"
+            type="number"
+            min="0"
+            value={createForm.attempts}
+            onChange={(e) => setCreateForm((f) => ({ ...f, attempts: e.target.value }))}
+          />
           <button className="btn btn-primary" type="submit" disabled={loading}>Tạo</button>
         </form>
       </section>
