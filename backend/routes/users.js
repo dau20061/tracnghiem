@@ -726,7 +726,7 @@ router.post("/upgrade", authMiddleware, async (req, res) => {
 
 // ==== Admin APIs ====
 
-router.get("/admin", requireAdminKey, async (_req, res) => {
+router.get("/admin", requireAdmin, async (_req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).lean();
     res.json({ users: users.map((u) => sanitizeUser(u)) });
@@ -736,7 +736,7 @@ router.get("/admin", requireAdminKey, async (_req, res) => {
   }
 });
 
-router.post("/admin", requireAdminKey, async (req, res) => {
+router.post("/admin", requireAdmin, async (req, res) => {
   try {
     const { username, password, email, plan = "free", expiresAt, isDisabled = false } = req.body || {};
     if (!username || !password || !email) {
@@ -812,7 +812,7 @@ router.post("/admin", requireAdminKey, async (req, res) => {
 });
 
 // Admin cộng lượt làm bài cho user
-router.patch("/admin/:id/attempts", requireAdminKey, async (req, res) => {
+router.patch("/admin/:id/attempts", requireAdmin, async (req, res) => {
   try {
     const { attempts } = req.body || {};
     if (!attempts || typeof attempts !== 'number' || attempts <= 0) {
@@ -836,7 +836,7 @@ router.patch("/admin/:id/attempts", requireAdminKey, async (req, res) => {
   }
 });
 
-router.patch("/admin/:id/membership", requireAdminKey, async (req, res) => {
+router.patch("/admin/:id/membership", requireAdmin, async (req, res) => {
   try {
     const { plan, expiresAt, extendDays } = req.body || {};
     if (!plan && !expiresAt && !extendDays) {
@@ -890,9 +890,9 @@ router.patch("/admin/:id/membership", requireAdminKey, async (req, res) => {
   }
 });
 
-router.patch("/admin/:id/password", requireAdminKey, async (req, res) => {
+router.patch("/admin/:id/password", requireAdmin, async (req, res) => {
   try {
-    const { password } = req.body || {};
+    const { newPassword } = req.body || {};
     if (!password || password.length < 6) {
       return res.status(400).json({ message: "Mật khẩu tối thiểu 6 ký tự" });
     }
