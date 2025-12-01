@@ -794,10 +794,18 @@ router.post("/admin", requireAdmin, async (req, res) => {
     
     // Send verification email
     try {
-      const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      console.log('📧 Sending verification email...');
+      console.log('   FRONTEND_URL env:', process.env.FRONTEND_URL);
+      console.log('   Using URL:', frontendUrl);
+      
+      const verificationLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+      console.log('   Verification link:', verificationLink);
+      
       await emailService.sendVerificationEmail(normalizedEmail, username, verificationLink);
+      console.log('✅ Verification email sent successfully');
     } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
+      console.error('❌ Failed to send verification email:', emailError);
       // Don't fail the request if email fails
     }
     
