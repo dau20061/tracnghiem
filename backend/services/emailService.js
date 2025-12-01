@@ -373,6 +373,56 @@ class EmailService {
         </html>
         `;
     }
+
+    async sendVerificationEmail(userEmail, userName, verificationLink) {
+        const safeName = userName || 'bạn';
+        const htmlContent = this.generateVerificationEmailHTML(safeName, verificationLink);
+        return await this.sendEmail(
+            userEmail,
+            '✅ Xác thực tài khoản - TracNghiem Platform',
+            htmlContent
+        );
+    }
+
+    generateVerificationEmailHTML(userName, verificationLink) {
+        return `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Xác thực tài khoản</title>
+            <style>
+                body { margin:0; padding:0; font-family:Arial,sans-serif; background:#f0f9ff; color:#0c4a6e; }
+                .card { max-width:580px; margin:40px auto; background:#ffffff; border-radius:20px; padding:40px; box-shadow:0 25px 50px rgba(2,132,199,0.15); }
+                h1 { margin-top:0; color:#0369a1; font-size:28px; }
+                .btn { display:inline-block; margin:24px 0; background:linear-gradient(135deg,#0ea5e9,#06b6d4); color:#fff; padding:16px 32px; border-radius:12px; text-decoration:none; font-weight:600; box-shadow:0 10px 25px rgba(6,182,212,0.3); }
+                .btn:hover { background:linear-gradient(135deg,#0284c7,#0891b2); }
+                .note { color:#64748b; font-size:14px; margin-top:24px; }
+                .warning { background:#fef9c3; border-left:4px solid #facc15; padding:16px; border-radius:8px; margin-top:20px; color:#713f12; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>✅ Xác thực tài khoản</h1>
+                <p>Xin chào <strong>${userName}</strong>,</p>
+                <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>TracNghiem Platform</strong>. Tài khoản của bạn đã được tạo bởi quản trị viên.</p>
+                <p>Để kích hoạt tài khoản và bắt đầu sử dụng, vui lòng nhấn vào nút bên dưới:</p>
+                <div style="text-align:center;">
+                    <a class="btn" href="${verificationLink}" target="_blank" rel="noopener">Xác thực tài khoản</a>
+                </div>
+                <p class="note">Link xác thực có hiệu lực trong vòng 24 giờ.</p>
+                <p class="note">Nếu bạn không thể nhấn vào nút, hãy sao chép và dán link sau vào trình duyệt:</p>
+                <p style="word-break:break-all; background:#f1f5f9; padding:12px; border-radius:8px; font-size:13px;">${verificationLink}</p>
+                <div class="warning">
+                    ⚠️ Nếu bạn không yêu cầu tạo tài khoản này, vui lòng bỏ qua email này.
+                </div>
+                <p style="margin-top:32px;">Chúc bạn học tập hiệu quả!<br/><strong>Đội ngũ TracNghiem Platform</strong></p>
+            </div>
+        </body>
+        </html>
+        `;
+    }
 }
 
 export default new EmailService();

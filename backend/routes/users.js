@@ -80,7 +80,7 @@ const requireAdminKey = (req, res, next) => {
   if (!ADMIN_API_KEY) {
     if (!adminKeyWarningLogged) {
       adminKeyWarningLogged = true;
-      }
+    }
     return next();
   }
   const headerKey = req.headers["x-admin-key"];
@@ -88,6 +88,33 @@ const requireAdminKey = (req, res, next) => {
     return res.status(401).json({ message: "Không có quyền truy cập quản trị" });
   }
   return next();
+};
+
+const requireAdmin = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization || "";
+    if (!header.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Thiếu token" });
+    }
+    const token = header.split(" ")[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user" });
+    }
+    
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Chỉ admin mới có quyền truy cập" });
+    }
+    
+    req.userId = user._id;
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error("Admin auth error", e.message);
+    res.status(401).json({ message: "Token không hợp lệ" });
+  }
 };
 
 // Endpoint để tạo admin account (chỉ dùng trong development)
@@ -604,6 +631,58 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// Verify email with token (for admin-created accounts)
+router.get("/verify-email/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Verify token
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Find user by email
+    const user = await User.findOne({ email: payload.email });
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy tài khoản" });
+    }
+    
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Tài khoản đã được xác thực" });
+    }
+    
+    // Verify token matches
+    if (user.verificationToken !== token) {
+      return res.status(400).json({ message: "Token không hợp lệ" });
+    }
+    
+    // Check expiry
+    if (user.verificationTokenExpiry && new Date() > user.verificationTokenExpiry) {
+      return res.status(400).json({ message: "Link xác thực đã hết hạn" });
+    }
+    
+    // Update user
+    user.isVerified = true;
+    user.accountStatus = 'active';
+    user.verificationToken = undefined;
+    user.verificationTokenExpiry = undefined;
+    
+    await user.save();
+    
+    res.json({ 
+      message: "Xác thực tài khoản thành công",
+      user: sanitizeUser(user)
+    });
+  } catch (e) {
+    console.error('Email verification error:', e);
+    if (e.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: "Link xác thực đã hết hạn" });
+    }
+    if (e.name === 'JsonWebTokenError') {
+      return res.status(400).json({ message: "Token không hợp lệ" });
+    }
+    res.status(500).json({ message: "Lỗi xác thực email" });
+  }
+});
+
 const addDuration = (plan, currentExpiry) => {
   const now = new Date();
   const current = currentExpiry && new Date(currentExpiry) > now ? new Date(currentExpiry) : now;
@@ -677,7 +756,24 @@ router.post("/admin", requireAdminKey, async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const doc = new User({ username, passwordHash, email: normalizedEmail, isDisabled: !!isDisabled });
+    
+    // Generate verification token
+    const verificationToken = jwt.sign(
+      { email: normalizedEmail, username },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    const doc = new User({ 
+      username, 
+      passwordHash, 
+      email: normalizedEmail, 
+      isDisabled: !!isDisabled,
+      isVerified: false,
+      accountStatus: 'pending',
+      verificationToken,
+      verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    });
 
     if (["day", "month", "year"].includes(plan)) {
       const { expiresAt, addedMs } = addDuration(plan, null);
@@ -695,7 +791,20 @@ router.post("/admin", requireAdminKey, async (req, res) => {
     }
 
     await doc.save();
-    res.status(201).json({ user: sanitizeUser(doc) });
+    
+    // Send verification email
+    try {
+      const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
+      await emailService.sendVerificationEmail(normalizedEmail, username, verificationLink);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Don't fail the request if email fails
+    }
+    
+    res.status(201).json({ 
+      user: sanitizeUser(doc),
+      message: 'User created. Verification email sent.'
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Không tạo được user" });
@@ -798,7 +907,7 @@ router.patch("/admin/:id/password", requireAdminKey, async (req, res) => {
   }
 });
 
-router.patch("/admin/:id/status", requireAdminKey, async (req, res) => {
+router.patch("/admin/:id/status", requireAdmin, async (req, res) => {
   try {
     const { disabled } = req.body || {};
     if (typeof disabled !== "boolean") {
@@ -806,6 +915,17 @@ router.patch("/admin/:id/status", requireAdminKey, async (req, res) => {
     }
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
+    
+    // Không cho admin vô hiệu hóa chính mình
+    if (user._id.toString() === req.userId.toString()) {
+      return res.status(403).json({ message: "Không thể vô hiệu hóa tài khoản của chính bạn" });
+    }
+    
+    // Không cho vô hiệu hóa admin khác
+    if (user.role === "admin" && disabled) {
+      return res.status(403).json({ message: "Không thể vô hiệu hóa tài khoản admin" });
+    }
+    
     user.isDisabled = disabled;
     await user.save();
     res.json({ user: sanitizeUser(user) });
@@ -815,10 +935,22 @@ router.patch("/admin/:id/status", requireAdminKey, async (req, res) => {
   }
 });
 
-router.delete("/admin/:id", requireAdminKey, async (req, res) => {
+router.delete("/admin/:id", requireAdmin, async (req, res) => {
   try {
-    const del = await User.findByIdAndDelete(req.params.id);
-    if (!del) return res.status(404).json({ message: "Không tìm thấy user" });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
+    
+    // Không cho admin xóa chính mình
+    if (user._id.toString() === req.userId.toString()) {
+      return res.status(403).json({ message: "Không thể xóa tài khoản của chính bạn" });
+    }
+    
+    // Không cho xóa admin khác
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Không thể xóa tài khoản admin" });
+    }
+    
+    await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Đã xóa user", id: req.params.id });
   } catch (e) {
     console.error(e);
