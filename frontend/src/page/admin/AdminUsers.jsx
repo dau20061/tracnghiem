@@ -20,7 +20,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
-  const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", plan: "free", attempts: 0 });
+  const [createForm, setCreateForm] = useState({ username: "", email: "", password: "", attempts: 0 });
   const [filterStatus, setFilterStatus] = useState("all"); // all, verified, pending
   const navigate = useNavigate();
 
@@ -99,13 +99,12 @@ export default function AdminUsers() {
           username: createForm.username,
           email: createForm.email.trim(),
           password: createForm.password,
-          plan: createForm.plan,
           attempts: Number(createForm.attempts) || 0,
         }),
       },
       "Đã tạo tài khoản"
     );
-    setCreateForm({ username: "", email: "", password: "", plan: "free", attempts: 0 });
+    setCreateForm({ username: "", email: "", password: "", attempts: 0 });
   };
 
   const extendPlan = (id, plan) => adminRequest(
@@ -225,15 +224,6 @@ export default function AdminUsers() {
             onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
             required
           />
-          <select
-            value={createForm.plan}
-            onChange={(e) => setCreateForm((f) => ({ ...f, plan: e.target.value }))}
-          >
-            <option value="free">Gói miễn phí</option>
-            <option value="day">Gói 3 lượt</option>
-            <option value="month">Gói 20 lượt</option>
-            <option value="year">Gói 200 lượt</option>
-          </select>
           <input
             placeholder="Số lượt làm bài (mặc định: 0)"
             type="number"
