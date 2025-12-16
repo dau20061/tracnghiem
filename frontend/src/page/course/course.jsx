@@ -131,12 +131,6 @@ export default function CoursesPage(){
                     <button className="btn" onClick={() => navigate(`/practice?course=${c.id}`)}>
                       Xem chi tiết
                     </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => navigate(isLoggedIn ? `/quiz/${c.id}` : '/login', { state: { from: `/quiz/${c.id}` } })}
-                    >
-                      Ghi danh
-                    </button>
                   </div>
                 </article>
               ))}
@@ -163,12 +157,6 @@ export default function CoursesPage(){
                   <div className="actions">
                     <button className="btn" onClick={() => navigate(`/practice?course=${c.id}`)}>
                       Xem chi tiết
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => navigate(isLoggedIn ? `/quiz/${c.id}` : '/login', { state: { from: `/quiz/${c.id}` } })}
-                    >
-                      Bắt đầu
                     </button>
                   </div>
                 </article>
