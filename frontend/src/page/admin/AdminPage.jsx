@@ -624,7 +624,7 @@ export default function AdminPage() {
     const tmpl = {
       _id: quizId || "my-quiz-id",
       title: "Tiêu đề mới",
-      settings: { immediateFeedback: false },
+      settings: { immediateFeedback: false, shuffleQuestions: true },
       questions: [ makeEmptyQuestion(1) ],
     };
     setQuiz(tmpl);
@@ -1057,6 +1057,8 @@ export default function AdminPage() {
               <input value={quiz.title || ""} onChange={(e)=>updateMeta({title: e.target.value})} style={{flex:1}} />
               <label>Immediate FB</label>
               <input type="checkbox" checked={!!quiz.settings?.immediateFeedback} onChange={(e)=>updateMeta({settings: {...(quiz.settings||{}), immediateFeedback: e.target.checked}})} />
+              <label style={{marginLeft: '12px'}}>Random câu hỏi</label>
+              <input type="checkbox" checked={quiz.settings?.shuffleQuestions !== false} onChange={(e)=>updateMeta({settings: {...(quiz.settings||{}), shuffleQuestions: e.target.checked}})} />
             </div>
 
             <div className="meta-row">

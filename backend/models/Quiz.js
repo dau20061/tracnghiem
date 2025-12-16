@@ -100,7 +100,8 @@ const QuizSchema = new mongoose.Schema({
   title:    { type: String, required: true },
   settings: {
     immediateFeedback: { type: Boolean, default: false },
-    timeLimit: { type: Number, default: null } // Thời gian làm bài (phút), null = không giới hạn
+    timeLimit: { type: Number, default: null }, // Thời gian làm bài (phút), null = không giới hạn
+    shuffleQuestions: { type: Boolean, default: true }, // Xáo câu hỏi khi bắt đầu
   },
   questions: { type: [QuestionSchema], required: true }
 }, { timestamps: true });

@@ -303,6 +303,16 @@ export default function QuizPage() {
         const res = await fetch(`${API_URL}/api/quizzes/${encodeURIComponent(quizId)}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || "Không tải được đề");
+        // If quiz has shuffleQuestions enabled (default true), shuffle questions for this session
+        const shouldShuffle = json.settings?.shuffleQuestions !== false; // default true
+        if (shouldShuffle && Array.isArray(json.questions) && json.questions.length > 1) {
+          const arr = json.questions.slice();
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          json.questions = arr;
+        }
         setData(json);
         setIdx(0);
         setAnswers({});

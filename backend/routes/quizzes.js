@@ -43,7 +43,8 @@ r.get("/:id", async (req, res) => {
 /** Danh sách tất cả quiz **/
 r.get("/", async (_req, res) => {
   try {
-    const list = await Quiz.find({}, { _id: 1, title: 1, "settings.immediateFeedback": 1 }).lean();
+    // Return full settings so admin and frontend can use shuffleQuestions and other flags
+    const list = await Quiz.find({}, { _id: 1, title: 1, settings: 1 }).lean();
     res.json(list);
   } catch (e) {
     console.error(e);
